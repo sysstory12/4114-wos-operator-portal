@@ -1,0 +1,1 @@
+GitHub repository sysstory12/4114-wos-operator-portal root: replace ONLY wrangler.jsonc with the one in this archive. Commit to main. Check Cloudflare Workers & Pages > 4114-wos-operator-portal > Deployments > Build History for a successful production build. Open /health: service must be 4114 unified operator PIN portal. Do not upload README or change secrets / database.

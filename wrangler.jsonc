@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wos-4114-operators",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-02",
+  "workers_dev": true,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "wos-4114-staging-db",
+      "database_id": "b3b306c8-2616-4c7c-89ad-90c95b227fa4"
+    }
+  ],
+  "observability": {"enabled": true, "head_sampling_rate": 1}
+}

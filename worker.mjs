@@ -130,7 +130,7 @@ async function login(req,env,now) {
   return responseJSON({ok:true},200,{'set-cookie':sessionCookie(token)});
 }
 function home(){
-  const html = String.raw`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>4114 운영진 | ZZN · GGZ</title>
+  const html = String.raw`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>4114 WOS COMMAND CENTER | STATE 4114</title>
   <style>
   :root{color-scheme:light;font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif;color:#17314c}
   *{box-sizing:border-box}body{margin:0;padding:16px;background:linear-gradient(140deg,#e9f4ff,#f9fcff);line-height:1.55}
@@ -188,7 +188,66 @@ function home(){
   .helper{text-align:left;font-size:12px;color:#6c8296}
   @media(max-width:760px){main{margin:0;border-radius:0}main>header{padding:20px}main>#app,main>#login,main>#error,main>#message{margin-left:14px;margin-right:14px}.metric-grid,.alliance-grid,.stat-strip{grid-template-columns:1fr 1fr}.metric strong{font-size:22px}.tabs button{min-width:98px;font-size:12px}.command-hero h2{font-size:23px}}
   @media(max-width:430px){.metric-grid,.alliance-grid{grid-template-columns:1fr 1fr}.metric{padding:12px}.metric strong{font-size:21px}.stat-strip{grid-template-columns:1fr}}
-  </style></head><body><main><header><h1>❄ 4114 WOS COMMAND CENTER</h1><p><small>STATE 4114 · ZZN & GGZ · OPERATIONS CENTER</small></p><div class="links"><a href="https://wos-svs-office-zzn-2026.cozybard21.chatgpt.site/" target="_blank" rel="noopener noreferrer">SVS 관직 신청</a><a href="https://wos-svs-office-zzn-2026.cozybard21.chatgpt.site/schedule" target="_blank" rel="noopener noreferrer">관직 배정표</a></div></header>
+  
+  /* v6 — Original COMMAND CENTER-inspired PRIVATE OPERATIONS visual system.
+     Historical site title/layout hierarchy verified. Exact source CSS not accessible. */
+  :root{--ink:#10233b;--ice:#a7ebff;--bronze:#cfaf74;--surface:#f6f9fe;--panel:#fff;--stroke:#dbe6f1;--quiet:#60758e}
+  body{background:radial-gradient(circle at 8% 2%,#c7dcef 0,transparent 30%),#edf3f9;color:var(--ink);padding:0 16px 32px}
+  body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(90deg,#0c294408 1px,transparent 1px),linear-gradient(#0c294408 1px,transparent 1px);background-size:40px 40px;opacity:.38}
+  main{position:relative;width:min(1490px,100%);margin:20px auto;padding:0 0 23px;border-radius:19px;border:1px solid #c8d9e9;background:var(--surface);overflow:hidden;box-shadow:0 22px 80px #152d4c24}
+  main>header{position:relative;overflow:hidden;padding:30px 36px 24px;background:linear-gradient(106deg,#08192f 0%,#112d4b 62%,#144b65 100%);color:#fff;border-bottom:1px solid #3b6d80}
+  main>header:after{content:"";pointer-events:none;position:absolute;width:310px;height:310px;border:1px solid #9fcbdc25;transform:rotate(36deg);right:5%;top:-190px;border-radius:58px;box-shadow:0 0 0 54px #9fcbdc09,0 0 0 112px #9fcbdc06}
+  header .brandline{display:flex;gap:17px;align-items:center;position:relative;z-index:1;flex-wrap:wrap}
+  header .brandmark{width:62px;height:62px;display:grid;place-items:center;border-radius:17px;border:1px solid #a6d7e05a;background:#badfe414;font-size:28px;color:#c2effa;flex:none}
+  header .brandlabel{color:#9ad1e1;font-size:11px;letter-spacing:2.3px;font-weight:800}
+  header h1{color:#f7fbff;font-size:clamp(22px,2.7vw,33px);letter-spacing:.07em;line-height:1.25;margin:5px 0}
+  header .brandsub{color:#c8dce8;font-size:12px;letter-spacing:1.6px;font-weight:700}
+  header .links{position:relative;z-index:1;margin-top:18px;gap:9px}
+  header .links a{display:inline-flex;align-items:center;min-height:33px;padding:6px 12px;border:1px solid #97d1e35c;border-radius:7px;background:#bfe8ff12;color:#dceff8!important;text-decoration:none;font-size:12px}
+  h2{color:#162f48;font-weight:800;letter-spacing:-.02em}
+  main>#app,main>#login,main>#error,main>#message{margin-left:22px;margin-right:22px}
+  main>#app{margin-top:14px;display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:20px;align-items:start}
+  #app>.row:first-child{grid-column:1/-1;justify-content:space-between;padding:8px 0 13px;border-bottom:1px solid #d8e5ef}
+  #app>.tabs{grid-column:1;grid-row:2/3;position:sticky;top:14px;margin-top:17px;display:flex;flex-direction:column;gap:5px;overflow:visible;padding:11px;background:#0e2841;border:1px solid #294860;border-radius:13px;box-shadow:0 8px 20px #1c355b17}
+  #app>.tabs button{display:block;width:100%;min-width:0!important;text-align:left;padding:13px 12px;border-radius:8px;border:1px solid transparent!important;background:transparent;color:#bfd2e3!important;font-size:13px;font-weight:700;transition:background .15s}
+  #app>.tabs button:hover{background:#ffffff12}
+  #app>.tabs button[aria-selected=true]{background:#d8edff!important;color:#0f405e!important;box-shadow:inset 3px 0 #3a9cc6}
+  #app>[id$="-view"]{grid-column:2;grid-row:2/3;min-width:0;margin-top:15px}
+  section.panel{background:var(--panel);border:1px solid var(--stroke);box-shadow:0 3px 18px #142e460a;border-radius:12px;padding:20px;margin:0 0 17px}
+  .command-hero{position:relative;overflow:hidden;background:linear-gradient(110deg,#10304b,#1a5266);color:#fff;border:none;padding:31px;border-radius:12px;margin:0 0 16px}
+  .command-hero:after{content:"❄";position:absolute;right:22px;top:-19px;font-size:180px;color:#fff;opacity:.065;pointer-events:none}
+  .command-hero .eyebrow{color:#9cddf1}.command-hero h2{color:#fff;font-size:clamp(23px,3vw,33px)}.command-hero p{color:#d1e2eb;max-width:700px}
+  .command-hero .focus-hint{background:#d1ebff1c;color:#daeffc;border:1px solid #cae9ff3c}
+  .eyebrow{color:#29718e;font-weight:800;font-size:11px;letter-spacing:2px}
+  .metric-grid{gap:12px;margin-bottom:17px}
+  .metric{border-color:#dce8f2;border-radius:12px;background:#fff;box-shadow:0 3px 12px #17385406;border-top:3px solid #87b4c5}
+  .metric:nth-child(2){border-top-color:#c7a873}.metric:nth-child(3){border-top-color:#36a3a7}.metric strong{color:#102d46}
+  .alliance-card{border-radius:12px;background:linear-gradient(140deg,#fff,#f8fbfe);box-shadow:0 3px 12px #17385409}
+  .alliance-card.zzn{border-top-color:#c7a873}.alliance-card.ggz{border-top-color:#26a7a9}
+  .pill{background:#d9ebf5;border:1px solid #bed9e8;color:#275670}.focus-hint{font-size:12px}
+  button{background:#175a79;border-color:#175a79;border-radius:7px;font-weight:700}
+  button.secondary{background:#eef6fa;color:#194c67;border-color:#c7deec}
+  button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #e0b66d;outline-offset:2px}
+  input,textarea,select{background:#fdfefe;border-color:#cddbe7;border-radius:7px}
+  .scroll{border-color:#d8e3ed;border-radius:10px}.scroll th{background:#ebf2f9;color:#264b63}
+  #oracle-preview-data{border-left:4px solid #3c9eb4;background:#f6fbff}
+  .diagnostic{border:1px solid #c4dcea;padding:16px;background:#eff7fc;border-radius:10px;margin-top:12px}
+  .diagnostic h3{margin:0 0 8px}
+  .oracle-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .oracle-result{padding:14px;background:#fff;border:1px solid #d9e5ee;border-radius:9px}
+  .oracle-result strong{display:block;margin-bottom:5px}
+  .oracle-result .warn{color:#9a6225;font-size:12px}
+  .diag-error{color:#a12737;font-weight:650}
+  #login{background:#fff;max-width:540px;margin:32px auto!important;padding:27px;box-shadow:0 12px 35px #173f6312}
+  #login h2{font-size:23px}#login .pin{max-width:230px}
+  @media(max-width:1020px){main>#app{grid-template-columns:180px minmax(0,1fr);column-gap:12px}main>#app{margin-left:13px;margin-right:13px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:760px){body{padding:0}main{margin:0;width:100%;border-radius:0;border:0}main>header{padding:23px 17px}header .brandmark{width:49px;height:49px;font-size:23px}header .brandline{gap:10px}header .brandlabel{font-size:9px;letter-spacing:1px}header h1{font-size:21px;letter-spacing:.015em}header .brandsub{font-size:10px;letter-spacing:.7px}
+    main>#app{display:block;margin:0 11px}#app>.tabs{position:sticky;top:0;display:flex;flex-direction:row;flex-wrap:nowrap;overflow:auto;scrollbar-width:thin;background:#0e2841;padding:7px;gap:5px;z-index:10;margin:10px 0;white-space:nowrap;border-radius:9px}
+    #app>.tabs button{display:inline-flex;width:auto;min-width:90px!important;flex:none;text-align:center;justify-content:center;padding:9px 10px}
+    #app>[id$="-view"]{margin-top:12px}section.panel{padding:16px}.oracle-columns{grid-template-columns:1fr}.two-col,.alliance-grid,.stat-strip{grid-template-columns:1fr}
+    .command-hero{padding:20px}.command-hero h2{font-size:24px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:430px){.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.metric{padding:12px}.metric strong{font-size:21px}}
+  </style></head><body><main><header><div class="brandline"><div class="brandmark" aria-hidden="true">❄</div><div><div class="brandlabel">WHITEOUT SURVIVAL · PRIVATE OPERATIONS</div><h1>4114 WOS COMMAND CENTER</h1><div class="brandsub">ZZN &amp; GGZ · STATE 4114 · OPERATIONS DESK</div></div></div><div class="links"><a href="https://wos-svs-office-zzn-2026.cozybard21.chatgpt.site/" target="_blank" rel="noopener noreferrer">SVS 관직 신청</a><a href="https://wos-svs-office-zzn-2026.cozybard21.chatgpt.site/schedule" target="_blank" rel="noopener noreferrer">관직 배정표</a></div></header>
   <p id="error" role="alert"></p><p id="message" role="status"></p>
   <section id="login" class="panel"><h2>운영진 간편 로그인</h2><p>공용 비밀번호 네 자리(숫자 4자리)만 입력하세요.</p>
   <form id="login-form"><label for="pin">운영진 공용 비밀번호</label><input id="pin" class="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off" required><button type="submit">입장하기</button></form>
@@ -236,15 +295,18 @@ function home(){
   <div class="row"><button type="submit" id="notice-save">공지 저장</button><button type="button" id="notice-cancel" class="secondary hidden">수정 취소</button></div></form></section>
   <section class="panel"><div class="row" style="justify-content:space-between"><h2>저장된 공지</h2><select id="chunk-size" style="width:auto"><option value="160">160자씩 분할</option><option value="220">220자씩 분할</option><option value="300">300자씩 분할</option></select></div><div id="notices"></div></section></div>
   <div id="oracle-view" class="hidden">
-    <section class="panel"><h2>Oracle+ · ZZN / GGZ 명단 동기화</h2>
+    <section class="panel"><span class="eyebrow">API CONNECTION · STATE 4114</span><h2>Oracle+ · ZZN / GGZ 명단 동기화</h2>
       <p class="safe"><small>이 사이트 하나에서 Oracle+를 이용합니다. API 토큰은 Cloudflare Secret으로만 보관하며 브라우저에 표시하지 않습니다. 최초에는 연맹 ID 저장 → 미리보기 → 승인 후 동기화 순서로 진행합니다.</small></p>
       <p id="oracle-status" class="muted" aria-live="polite">설정을 확인하고 있습니다.</p>
+      <div class="diagnostic"><h3>1. Oracle+ 서버 연결 진단</h3><p class="helper">4114 왕국의 상위 10개 연맹을 읽기 전용으로 조회합니다. 연맹 ID 대조 및 API_TOKEN 연결 확인에 사용합니다. 호출 1회가 Oracle+ 사용량에 포함됩니다.</p>
+      <button id="oracle-diagnose" type="button" class="secondary">4114 서버 연결 확인 · AID 찾기</button><div id="oracle-diagnosis" class="notice" aria-live="polite">아직 진단을 실행하지 않았습니다.</div></div>
       <form id="oracle-config"><label for="oracle-zzn">ZZN Oracle+ 연맹 ID (AID)</label><input id="oracle-zzn" inputmode="numeric" pattern="[0-9]{5,20}" required placeholder="숫자 연맹 ID">
       <label for="oracle-ggz">GGZ Oracle+ 연맹 ID (AID)</label><input id="oracle-ggz" inputmode="numeric" pattern="[0-9]{5,20}" required placeholder="숫자 연맹 ID">
       <p class="muted"><small>기존 4114 WOS COMMAND CENTER 개발 기록의 연맹 ID는 ZZN 4114000047 / GGZ 4114000235입니다. 실제 API 응답으로 재확인되기 전에는 갱신하지 마세요. 연맹 태그가 맞지 않으면 저장하지 않습니다.</small></p>
       <button type="submit" class="secondary">연맹 ID 저장</button></form>
-      <div class="row" style="margin-top:13px"><button id="oracle-preview" type="button" class="secondary">1. 실제 명단 미리보기 (DB 변경 없음)</button><button id="oracle-sync" type="button" disabled>2. 확인 후 명단 갱신</button></div>
-      <div id="oracle-preview-data" class="notice" aria-live="polite">미리보기를 실행하면 실제 연맹 태그·인원과 일부 닉네임을 확인할 수 있습니다.</div>
+      <div class="row" style="margin-top:13px"><button id="oracle-preview-zzn" type="button" class="secondary">ZZN만 미리보기</button><button id="oracle-preview-ggz" type="button" class="secondary">GGZ만 미리보기</button><button id="oracle-preview" type="button" class="secondary">양쪽 명단 확인 (읽기 전용)</button></div>
+      <div class="row" style="margin-top:9px"><button id="oracle-sync" type="button" disabled>검증 후 명단 갱신</button><small class="muted">한쪽이라도 미확인되면 갱신할 수 없습니다.</small></div>
+      <div id="oracle-preview-data" class="notice" aria-live="polite">각 연맹을 따로 확인할 수 있습니다. ID 미연결 인원은 경고로 표시되며 기존 명단을 삭제하지 않습니다.</div>
     </section>
     <section class="panel"><h2>자동 갱신</h2><p>첫 번째 수동 동기화가 성공하면 자동 동기화를 켤 수 있습니다. UTC 기준 6시간 간격으로 확인하며 두 연맹 응답 모두 정상일 때만 DB를 갱신합니다.</p>
       <div class="row"><button id="oracle-auto-on" type="button" class="secondary">자동 갱신 켜기</button><button id="oracle-auto-off" type="button" class="secondary">자동 갱신 끄기</button></div>
@@ -271,12 +333,27 @@ function home(){
     if(!get('oracle-ggz').value)get('oracle-ggz').value=x.alliances.GGZ.aid||'4114000235';
   }
   get('oracle-config').onsubmit=async e=>{e.preventDefault();try{err.textContent='';const x=await api('/api/oracle/config','POST',{ZZN:get('oracle-zzn').value,GGZ:get('oracle-ggz').value});oraclePreviewValid=false;get('oracle-sync').disabled=true;msg.textContent=x.message;await loadOracleStatus()}catch(x){setError(x)}};
-  get('oracle-preview').onclick=async()=>{try{err.textContent='';get('oracle-preview').disabled=true;get('oracle-preview-data').textContent='Oracle+ 응답을 조회하고 있습니다.';
-    const r=await api('/api/oracle/preview','POST',{});oraclePreviewValid=true;get('oracle-sync').disabled=false;
-    const host=get('oracle-preview-data');host.replaceChildren();host.append(elt('p',r.message));
-    for(const a of r.alliances){host.append(elt('h3',a.tag+' · '+a.name+' · '+a.count+'명 · AID '+a.aid));
-      const sample=a.examples.map(p=>p.nickname+' ('+p.fid+')').join(', ');host.append(elt('p','샘플: '+sample));}
-  }catch(x){oraclePreviewValid=false;get('oracle-sync').disabled=true;get('oracle-preview-data').textContent='미리보기에 실패했습니다. 연맹 ID와 API_TOKEN을 확인하세요.';setError(x)}finally{get('oracle-preview').disabled=false}};
+  get('oracle-diagnose').onclick=async()=>{const b=get('oracle-diagnose'),host=get('oracle-diagnosis');b.disabled=true;host.replaceChildren();host.append(elt('p','4114 서버의 Oracle+ 응답을 확인하고 있습니다.'));
+    try{err.textContent='';const r=await api('/api/oracle/diagnose','POST',{});host.replaceChildren();host.append(elt('p','Oracle+ 인증 성공 · 추적된 왕국 플레이어 '+r.tracked_players+'명 · 조회 가능 상위 '+r.alliances.length+'개 연맹'));
+      const table=elt('table'),thead=elt('thead'),tr=elt('tr');for(const h of ['연맹','연맹 ID(AID)','인원','입력'])tr.append(elt('th',h));thead.append(tr);table.append(thead);const tbody=elt('tbody');for(const a of r.alliances){const row=elt('tr');for(const x of [a.abbr+' · '+a.name,a.id,a.member_count])row.append(elt('td',x));const tools=elt('td');if(['ZZN','GGZ'].includes(a.abbr.toUpperCase()))tools.append(btn(a.abbr.toUpperCase()+'에 입력',()=>{get('oracle-'+a.abbr.toLowerCase()).value=a.id;oraclePreviewValid=false;get('oracle-sync').disabled=true;msg.textContent='입력칸에 ID를 반영했습니다. 연맹 ID 저장 버튼을 눌러 주세요.'},'secondary'));row.append(tools);tbody.append(row)}table.append(tbody);const scroll=elt('div');scroll.className='scroll';scroll.append(table);host.append(scroll);host.append(elt('p','참고: Oracle+ Plus에서는 상위 10개 연맹만 표시됩니다. 목록에 없더라도 연맹이 없다는 의미는 아닙니다.'));
+    }catch(e){host.replaceChildren();const p=elt('p','연결 진단 실패: '+e.message);p.className='diag-error';host.append(p);setError(e)}finally{b.disabled=false}};
+  async function oraclePreview(tag){const b=get(tag?'oracle-preview-'+tag.toLowerCase():'oracle-preview'),host=get('oracle-preview-data');
+    try{err.textContent='';b.disabled=true;oraclePreviewValid=false;get('oracle-sync').disabled=true;host.replaceChildren();host.append(elt('p',(tag||'ZZN·GGZ')+' 응답 조회 중…'));
+      const r=await api('/api/oracle/preview','POST',tag?{tag}:{});host.replaceChildren();host.append(elt('p',r.message));
+      const cards=elt('div');cards.className='oracle-columns';
+      for(const a of r.alliances){const card=elt('div');card.className='oracle-result';card.append(elt('strong',a.tag+' · '+a.name+' · AID '+a.aid));
+        card.append(elt('p','조회 명단 '+a.roster_count+'명 · 연결된 플레이어 '+a.count+'명 · ID 미연결 '+a.unlinked_count+'명'+(a.reported_count!==null?' · API 전체 '+a.reported_count+'명':'')));
+        if(a.examples.length)card.append(elt('p','예시: '+a.examples.map(p=>p.nickname+' ('+p.fid+')').join(', ')));
+        for(const warning of a.warnings||[]){const p=elt('p','⚠ '+warning);p.className='warn';card.append(p)}
+        cards.append(card);
+      }
+      for(const e of r.errors||[]){const card=elt('div');card.className='oracle-result';const p=elt('p',e.tag+' 조회 실패 ['+e.code+']: '+e.error);p.className='diag-error';card.append(p);cards.append(card)}host.append(cards);
+      oraclePreviewValid=!!r.readyForSync;get('oracle-sync').disabled=!oraclePreviewValid;
+      if(r.errors&&r.errors.length)err.textContent='API 진단 결과를 확인해 주세요. 기존 명단은 변경되지 않았습니다.';
+    }catch(e){oraclePreviewValid=false;get('oracle-sync').disabled=true;host.replaceChildren();const p=elt('p',e.message);p.className='diag-error';host.append(p);setError(e)}finally{b.disabled=false}}
+  get('oracle-preview').onclick=()=>oraclePreview(null);
+  get('oracle-preview-zzn').onclick=()=>oraclePreview('ZZN');
+  get('oracle-preview-ggz').onclick=()=>oraclePreview('GGZ');
   get('oracle-sync').onclick=async()=>{if(!oraclePreviewValid)return;if(!confirm('ZZN·GGZ 기존 닉네임·소속·전투력을 Oracle+ 최신 정보로 갱신하시겠습니까? R4·부계정은 보존됩니다.'))return;
     try{get('oracle-sync').disabled=true;const r=await api('/api/oracle/sync','POST',{confirm:true});msg.textContent='동기화 완료: ZZN '+r.counts.ZZN+'명, GGZ '+r.counts.GGZ+'명';oraclePreviewValid=false;await Promise.all([fetchPlayers(),loadOracleStatus()]);}catch(x){setError(x)} };
   for(const [id,enabled] of [['oracle-auto-on',true],['oracle-auto-off',false]])get(id).onclick=async()=>{try{const x=await api('/api/oracle/automatic','POST',{enabled});msg.textContent=x.message;await loadOracleStatus()}catch(x){setError(x)}};
@@ -421,7 +498,7 @@ async function ownerAuthenticated(req, env, now) {
 }
 function ownerPage(){
   const html=String.raw`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>4114 비밀번호 설정</title>
-  <style>body{margin:0;padding:25px;background:#eaf3ff;font:16px/1.6 system-ui,-apple-system,'Malgun Gothic',sans-serif;color:#173451}main{max-width:550px;margin:35px auto;background:white;border:1px solid #d5e3ef;border-radius:16px;padding:28px}h1{font-size:24px}input,button{box-sizing:border-box;width:100%;padding:12px;font:inherit;border-radius:9px;margin:5px 0 12px;border:1px solid #a5bed0}button{background:#14659d;border:0;color:white;cursor:pointer}small{color:#5b7186}.hidden{display:none!important}#err{color:#b12a32}#msg{color:#08775d}a{color:#14659d}</style></head><body><main><h1>4114 WOS COMMAND CENTER</h1><h2>최고관리자 · 공용 비밀번호 설정</h2><p><small>현재 운영진 사이트와 같은 주소에서 PIN만 변경합니다. 연맹원·보상 관리 권한과는 무관합니다.</small></p><p id="err" role="alert"></p><p id="msg" role="status"></p>
+  <style>body{margin:0;padding:22px;background:radial-gradient(circle at 0 0,#c8ddec,transparent 40%),#eef3f9;font:16px/1.6 system-ui,-apple-system,'Malgun Gothic',sans-serif;color:#14304a}main{max-width:580px;margin:34px auto;background:#fff;border:1px solid #cfdeeb;border-radius:17px;padding:0 28px 25px;overflow:hidden;box-shadow:0 18px 60px #112c4828}h1{margin:0 -28px 23px;background:linear-gradient(110deg,#091b32,#124964);padding:25px 28px;color:#eef8ff;font-size:24px;letter-spacing:.04em}h2{font-size:19px;color:#173853}input,button{box-sizing:border-box;width:100%;padding:12px;font:inherit;border-radius:8px;margin:5px 0 12px;border:1px solid #bdcede}button{background:#195e7d;border:0;color:white;cursor:pointer;font-weight:700}small{color:#59748d}.hidden{display:none!important}#err{color:#b12a32}#msg{color:#08775d}a{color:#176b95}input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #d4b67d;outline-offset:2px}@media(max-width:600px){body{padding:0}main{margin:0;border-radius:0;min-height:100vh}}</style></head><body><main><h1>4114 WOS COMMAND CENTER</h1><h2>최고관리자 · 공용 비밀번호 설정</h2><p><small>현재 운영진 사이트와 같은 주소에서 PIN만 변경합니다. 연맹원·보상 관리 권한과는 무관합니다.</small></p><p id="err" role="alert"></p><p id="msg" role="status"></p>
   <section id="owner-login"><form id="owner-login-form"><label for="owner-id">최고관리자 ID</label><input id="owner-id" autocomplete="username" required><label for="owner-secret">최고관리자 비밀번호</label><input id="owner-secret" type="password" autocomplete="current-password" required><button>최고관리자 로그인</button></form></section>
   <section id="owner-setup" class="hidden"><p>새 운영진 공용 비밀번호를 입력하세요. 변경 즉시 기존 운영진 로그인 세션은 만료됩니다.</p><form id="pin-form"><label for="new-pin">새 공용 비밀번호 (숫자 4자리)</label><input id="new-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required><label for="again">비밀번호 확인</label><input id="again" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required><button>공용 비밀번호 변경</button></form><button id="owner-logout" type="button">최고관리자 로그아웃</button></section><p><a href="/">운영진 로그인으로 돌아가기</a></p></main><script nonce="__NONCE__">
   const by=id=>document.getElementById(id),err=by('err'),msg=by('msg');
@@ -560,7 +637,7 @@ function validateNotice(v){
 }
 async function main(req,env,now) {
   const url = new URL(req.url); const p=url.pathname;
-  if(p==='/health' && req.method==='GET') return responseJSON({service:'4114 unified operator PIN portal',configured:configOk(env),ownerConfigured:ownerConfigOk(env)});
+  if(p==='/health' && req.method==='GET') return responseJSON({service:'4114 unified operator PIN portal',version:'6.0.0',oracleDiagnostics:true,configured:configOk(env),ownerConfigured:ownerConfigOk(env)});
   if(!env.DB) return responseJSON({error:'DB 연결이 필요합니다.'},503);
   if(p==='/' && req.method==='GET') return home();
   if(p==='/admin'||p.startsWith('/api/owner/')) return ownerRequest(req,env,now,p);

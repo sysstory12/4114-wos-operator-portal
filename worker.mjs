@@ -1,5 +1,6 @@
-// 4114 operator-only PIN portal. Deploy as a SEPARATE Worker.
-// The existing wos-4114-staging owner Worker MUST remain under Cloudflare Access.
+// 4114 single-site operator portal. Operator uses a 4-digit shared PIN.
+// The owner changes the shared PIN on this SAME Worker at /admin.
+// No secrets or private user information are sent to clients.
 const enc = new TextEncoder();
 const textHeaders = {
   'content-type': 'text/html; charset=utf-8',
@@ -13,6 +14,15 @@ const textHeaders = {
 const cookieName = '__Host-wos_operator';
 const PIN_RE = /^\d{4}$/;
 const MAX_SESSION_SEC = 8 * 3600;
+const OWNER_SESSION_SEC = 45 * 60;
+const ownerCookieName = '__Host-wos_owner';
+const ownerIDPattern = /^[A-Za-z0-9._@-]{3,80}$/;
+function ownerConfigOk(env) {
+  return !!env?.DB && typeof env.SESSION_SECRET === 'string' && env.SESSION_SECRET.length >= 32 &&
+    ownerIDPattern.test(env.OWNER_LOGIN_ID || '') && typeof env.OWNER_LOGIN_SECRET === 'string' &&
+    env.OWNER_LOGIN_SECRET.length >= 20;
+}
+
 function responseJSON(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), { status, headers: {
     'content-type': 'application/json; charset=utf-8',
@@ -55,10 +65,17 @@ async function parseBody(req,maxChars=55000) {
   if(body.length>maxChars) throw Error('Too large');
   return JSON.parse(body);
 }
+async function pinDigest(env, pin) {
+  return hmac(env.SESSION_SECRET, `4114-operator-pin-v3:${pin}`);
+}
+async function activePinDigest(env) {
+  const row = await env.DB.prepare('SELECT pin_hmac_hex FROM wos_operator_pin_settings WHERE id=1').first();
+  return row?.pin_hmac_hex || await pinDigest(env, env.OPERATOR_PIN);
+}
 async function signSession(env, exp, nonce) {
   // Binding the session signature to the current PIN invalidates sessions after PIN rotation.
   const value = `v1.${exp}.${nonce}`;
-  const sig = await hmac(env.SESSION_SECRET,`wos4114|${value}|${env.OPERATOR_PIN}`);
+  const sig = await hmac(env.SESSION_SECRET,`wos4114|${value}|${await activePinDigest(env)}`);
   return `${value}.${sig}`;
 }
 async function authenticated(req,env,now) {
@@ -67,7 +84,7 @@ async function authenticated(req,env,now) {
   if(!match) return false;
   const exp=Number(match[1]);
   if(exp<=now || exp>now+MAX_SESSION_SEC) return false;
-  const sig = await hmac(env.SESSION_SECRET,`wos4114|v1.${match[1]}.${match[2]}|${env.OPERATOR_PIN}`);
+  const sig = await hmac(env.SESSION_SECRET,`wos4114|v1.${match[1]}.${match[2]}|${await activePinDigest(env)}`);
   return constantTimeEqual(sig,match[3]);
 }
 const sessionCookie = (token) => `${cookieName}=${token}; Path=/; Max-Age=${MAX_SESSION_SEC}; Secure; HttpOnly; SameSite=Strict`;
@@ -96,7 +113,7 @@ async function login(req,env,now) {
   try{counts=await attemptInfo(env,clientHash,now)}catch{return responseJSON({error:'로그인 확인을 사용할 수 없습니다.'},503)}
   if(counts.perIp>=5 || counts.global>=15) return responseJSON({error:'로그인 시도가 많습니다. 15분 후 다시 시도해주세요.'},429);
   const pin=body?.pin;
-  if(typeof pin!=='string'||!PIN_RE.test(pin)||!constantTimeEqual(pin,env.OPERATOR_PIN)) {
+  if(typeof pin!=='string'||!PIN_RE.test(pin)||!constantTimeEqual(await pinDigest(env,pin), await activePinDigest(env))) {
     try{await recordFailure(env,clientHash,now)}catch{return responseJSON({error:'로그인을 처리할 수 없습니다.'},503)}
     return responseJSON({error:'비밀번호가 올바르지 않습니다.'},401);
   }
@@ -134,7 +151,7 @@ function home(){
   <p id="error" role="alert"></p><p id="message" role="status"></p>
   <section id="login" class="panel"><h2>운영진 간편 로그인</h2><p>공용 비밀번호 네 자리(숫자 4자리)만 입력하세요.</p>
   <form id="login-form"><label for="pin">운영진 공용 비밀번호</label><input id="pin" class="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off" required><button type="submit">입장하기</button></form>
-  <p><small>최고관리자 설정은 별도 Cloudflare Access 페이지에서 관리합니다.</small></p></section>
+  <p><small>최고관리자는 이 사이트의 <a href="/admin">비밀번호 설정</a>에서 공용 PIN을 변경할 수 있습니다.</small></p></section>
   <div id="app" class="hidden"><div class="row" style="justify-content:space-between"><span class="pill">운영진 로그인 중 · 8시간 유효</span><button class="secondary" id="logout">로그아웃</button></div>
   <nav class="tabs" aria-label="메뉴"><button id="tab-players" aria-selected="true" type="button">연맹원 관리</button><button id="tab-notices" aria-selected="false" type="button">공지 보관함</button></nav>
   <div id="members-view">
@@ -209,6 +226,81 @@ function home(){
   return new Response(html.replace('__NONCE__',nonce),{headers:{...textHeaders,'content-security-policy':`${textHeaders['content-security-policy']}; script-src 'nonce-${nonce}'`}});
 }
 
+// Owner authentication uses strong, independent credentials configured as Worker Secrets.
+// It does not grant access to the older owner site or to game data APIs.
+function getCookie(req, name) {
+  for (const p of (req.headers.get('cookie')||'').split(';')) {
+    const n=p.indexOf('=');
+    if(n>0 && p.slice(0,n).trim()===name) return p.slice(n+1).trim();
+  }
+  return '';
+}
+async function ownerSigned(env, message) {
+  return hmac(env.SESSION_SECRET, `wos4114-owner|${env.OWNER_LOGIN_SECRET}|${message}`);
+}
+async function ownerAuthenticated(req, env, now) {
+  if(!ownerConfigOk(env)) return false;
+  const raw=getCookie(req, ownerCookieName);
+  const m=/^v1\.(\d{10})\.([a-f0-9]{32})\.([a-f0-9]{64})$/.exec(raw);
+  if(!m) return false;
+  const exp=Number(m[1]);
+  if(exp<=now || exp>now+OWNER_SESSION_SEC) return false;
+  return constantTimeEqual(await ownerSigned(env, `v1.${m[1]}.${m[2]}`),m[3]);
+}
+function ownerPage(){
+  const html=String.raw`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>4114 비밀번호 설정</title>
+  <style>body{margin:0;padding:25px;background:#eaf3ff;font:16px/1.6 system-ui,-apple-system,'Malgun Gothic',sans-serif;color:#173451}main{max-width:550px;margin:35px auto;background:white;border:1px solid #d5e3ef;border-radius:16px;padding:28px}h1{font-size:24px}input,button{box-sizing:border-box;width:100%;padding:12px;font:inherit;border-radius:9px;margin:5px 0 12px;border:1px solid #a5bed0}button{background:#14659d;border:0;color:white;cursor:pointer}small{color:#5b7186}.hidden{display:none!important}#err{color:#b12a32}#msg{color:#08775d}a{color:#14659d}</style></head><body><main><h1>4114 WOS COMMAND CENTER</h1><h2>최고관리자 · 공용 비밀번호 설정</h2><p><small>현재 운영진 사이트와 같은 주소에서 PIN만 변경합니다. 연맹원·보상 관리 권한과는 무관합니다.</small></p><p id="err" role="alert"></p><p id="msg" role="status"></p>
+  <section id="owner-login"><form id="owner-login-form"><label for="owner-id">최고관리자 ID</label><input id="owner-id" autocomplete="username" required><label for="owner-secret">최고관리자 비밀번호</label><input id="owner-secret" type="password" autocomplete="current-password" required><button>최고관리자 로그인</button></form></section>
+  <section id="owner-setup" class="hidden"><p>새 운영진 공용 비밀번호를 입력하세요. 변경 즉시 기존 운영진 로그인 세션은 만료됩니다.</p><form id="pin-form"><label for="new-pin">새 공용 비밀번호 (숫자 4자리)</label><input id="new-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required><label for="again">비밀번호 확인</label><input id="again" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required><button>공용 비밀번호 변경</button></form><button id="owner-logout" type="button">최고관리자 로그아웃</button></section><p><a href="/">운영진 로그인으로 돌아가기</a></p></main><script nonce="__NONCE__">
+  const by=id=>document.getElementById(id),err=by('err'),msg=by('msg');
+  async function call(path,method='GET',v){const init={method,headers:{}};if(v!==undefined){init.headers['content-type']='application/json';init.body=JSON.stringify(v)}const r=await fetch(path,init);if(!(r.headers.get('content-type')||'').includes('application/json'))throw Error('서버 응답 오류: HTTP '+r.status);const data=await r.json();if(!r.ok)throw Error(data.error||'요청 실패');return data;}
+  function display(ok){by('owner-login').classList.toggle('hidden',ok);by('owner-setup').classList.toggle('hidden',!ok)}
+  async function init(){try{await call('/api/owner/me');display(true)}catch{display(false)}}
+  by('owner-login-form').onsubmit=async e=>{e.preventDefault();err.textContent='';try{await call('/api/owner/login','POST',{id:by('owner-id').value,password:by('owner-secret').value});by('owner-secret').value='';display(true)}catch(x){err.textContent=x.message}};
+  by('pin-form').onsubmit=async e=>{e.preventDefault();err.textContent='';if(by('new-pin').value!==by('again').value){err.textContent='비밀번호 확인이 일치하지 않습니다.';return;}try{await call('/api/owner/pin','POST',{pin:by('new-pin').value});by('new-pin').value='';by('again').value='';msg.textContent='공용 비밀번호가 변경되었습니다. 기존 운영진 로그인은 해제됩니다.';}catch(x){err.textContent=x.message}};
+  by('owner-logout').onclick=async()=>{await call('/api/owner/logout','POST',{});display(false);msg.textContent='최고관리자 로그아웃 완료'};
+  init();
+  </script></body></html>`;
+  const nonce=randomHex(16);return new Response(html.replace('__NONCE__',nonce),{headers:{...textHeaders,'content-security-policy':`${textHeaders['content-security-policy']}; script-src 'nonce-${nonce}'`}});
+}
+async function ownerRequest(req,env,now,path) {
+  if(path==='/admin' && req.method==='GET') return ownerPage();
+  if(!ownerConfigOk(env)) return responseJSON({error:'최고관리자 비밀 설정이 필요합니다.'},503);
+  if(path==='/api/owner/login' && req.method==='POST') {
+    if(!validOrigin(req)) return responseJSON({error:'잘못된 요청입니다.'},403);
+    let v;try{v=await parseBody(req,1500)}catch{return responseJSON({error:'로그인 요청이 올바르지 않습니다.'},400)}
+    const ipHash=await hmac(env.SESSION_SECRET,'owner:'+String(req.headers.get('cf-connecting-ip')||'unknown'));
+    const window=now-900;
+    const stats=await Promise.all([
+      env.DB.prepare('SELECT COUNT(*) AS n FROM wos_operator_login_attempts WHERE username=? AND client_hmac_hex=? AND attempted_unix>=?').bind('owner-settings',ipHash,window).first(),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM wos_operator_login_attempts WHERE username=? AND attempted_unix>=?').bind('owner-settings',window).first()
+    ]);
+    if(Number(stats[0]?.n||0)>=5||Number(stats[1]?.n||0)>=15) return responseJSON({error:'로그인 시도 횟수 초과. 15분 후 다시 시도하세요.'},429);
+    const good=typeof v?.id==='string'&&typeof v?.password==='string' &&
+      constantTimeEqual(v.id,env.OWNER_LOGIN_ID) && constantTimeEqual(v.password,env.OWNER_LOGIN_SECRET);
+    if(!good){await env.DB.prepare('INSERT INTO wos_operator_login_attempts(username,client_hmac_hex,attempted_unix) VALUES(?,?,?)').bind('owner-settings',ipHash,now).run();return responseJSON({error:'아이디 또는 비밀번호가 일치하지 않습니다.'},401);}
+    const exp=now+OWNER_SESSION_SEC, value=`v1.${exp}.${randomHex(16)}`,sig=await ownerSigned(env,value);
+    await audit(env,'OWNER_LOGIN','pin-settings');
+    return responseJSON({ok:true},200,{'set-cookie':`${ownerCookieName}=${value}.${sig}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=${OWNER_SESSION_SEC}`});
+  }
+  if(!await ownerAuthenticated(req,env,now)) return responseJSON({error:'최고관리자 로그인이 필요합니다.'},401);
+  if(path==='/api/owner/me'&&req.method==='GET')return responseJSON({role:'OWNER',capabilities:['PIN_CHANGE']});
+  if(path==='/api/owner/logout'&&req.method==='POST'){
+    if(!validOrigin(req))return responseJSON({error:'잘못된 요청입니다.'},403);
+    return responseJSON({ok:true},200,{'set-cookie':`${ownerCookieName}=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Strict`});
+  }
+  if(path==='/api/owner/pin'&&req.method==='POST'){
+    if(!validOrigin(req)) return responseJSON({error:'잘못된 요청입니다.'},403);
+    let v;try{v=await parseBody(req,1000)}catch{return responseJSON({error:'잘못된 입력입니다.'},400)}
+    if(typeof v?.pin!=='string'||!PIN_RE.test(v.pin))return responseJSON({error:'숫자 네 자리로 입력해주세요.'},400);
+    const hashed=await pinDigest(env,v.pin);
+    await env.DB.prepare('INSERT INTO wos_operator_pin_settings(id,pin_hmac_hex,version) VALUES(1,?,1) ON CONFLICT(id) DO UPDATE SET pin_hmac_hex=excluded.pin_hmac_hex,version=version+1,updated_at=CURRENT_TIMESTAMP').bind(hashed).run();
+    await audit(env,'SHARED_PIN_CHANGED','operators');
+    return responseJSON({changed:true});
+  }
+  return responseJSON({error:'Not found'},404);
+}
+
 function validateNotice(v){
   if(!v||typeof v.title!=='string'||typeof v.body!=='string'||typeof v.language!=='string')return null;
   const title=v.title.trim(),body=v.body,language=v.language,category=v.category||'일반';
@@ -218,9 +310,10 @@ function validateNotice(v){
 }
 async function main(req,env,now) {
   const url = new URL(req.url); const p=url.pathname;
-  if(p==='/health' && req.method==='GET') return responseJSON({service:'4114 operator PIN portal',configured:configOk(env)});
+  if(p==='/health' && req.method==='GET') return responseJSON({service:'4114 unified operator PIN portal',configured:configOk(env)});
   if(!env.DB) return responseJSON({error:'DB 연결이 필요합니다.'},503);
   if(p==='/' && req.method==='GET') return home();
+  if(p==='/admin'||p.startsWith('/api/owner/')) return ownerRequest(req,env,now,p);
   if(!configOk(env)) return responseJSON({error:'운영진 사이트 설정이 완료되지 않았습니다.'},503);
   if(p==='/api/login' && req.method==='POST') return login(req,env,now);
   if(p==='/api/logout' && req.method==='POST') {
@@ -298,4 +391,4 @@ async function main(req,env,now) {
   return responseJSON({error:'Not found'},404);
 }
 export default { async fetch(req,env) { try { return await main(req,env,Math.floor(Date.now()/1000)); } catch(e) { console.error('Operator portal error:',String(e?.message||'unexpected')); return responseJSON({error:'요청 처리 중 문제가 발생했습니다.'},500); } } };
-export const _testing={configOk,signSession,authenticated,login,constantTimeEqual,attemptInfo};
+export const _testing={configOk,signSession,authenticated,login,constantTimeEqual,attemptInfo,pinDigest,activePinDigest,ownerConfigOk,ownerAuthenticated,ownerRequest};

@@ -1,4 +1,5 @@
 import {oracleHandler, scheduledSync} from './oracle-sync.mjs';
+import {operationsHandler} from './operations.mjs';
 // 4114 single-site operator portal. Operator uses a 4-digit shared PIN.
 // The owner changes the shared PIN on this SAME Worker at /admin.
 // No secrets or private user information are sent to clients.
@@ -153,15 +154,55 @@ function home(){
   .safe{padding:11px 14px;background:#f2f8fd;border:1px solid #e1ecf7;border-radius:10px}
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:13px}
   @media(max-width:720px){main{padding:15px}h1{font-size:21px}.two-col,.grid{grid-template-columns:1fr}.tabs button{flex:1}}
-  </style></head><body><main><header><h1>❄ 4114 WOS COMMAND CENTER</h1><p><small>ZZN · GGZ 운영진 포털</small></p><div class="links"><a href="https://wos-svs-office-zzn-2026.cozybard21.chatgpt.site/" target="_blank" rel="noopener noreferrer">SVS 관직 신청</a><a href="https://wos-svs-office-zzn-2026.cozybard21.chatgpt.site/schedule" target="_blank" rel="noopener noreferrer">관직 배정표</a></div></header>
+
+  /* v5 command center · source-backed operations theme */
+  :root{--ice:#e8f3ff;--navy:#112b49;--line:#dfe9f4;--slate:#57718a;--zzn:#c99a45;--ggz:#16a6a1}
+  body{background:radial-gradient(ellipse at top left,#dceefa 0,transparent 42%),linear-gradient(135deg,#f3f8fd,#e9f3fc);padding:0 15px 26px}
+  main{width:min(1320px,100%);margin:22px auto;padding:0 0 25px;border:1px solid #d2e0ee;overflow:hidden;border-radius:22px;box-shadow:0 18px 65px #183d6117}
+  main>header{padding:28px 32px;background:linear-gradient(116deg,#102842,#1d4a71 75%,#236a82);color:white}
+  header h1{font-size:26px;letter-spacing:.02em}header p small{color:#cbdfe9}header a{color:#e3f3ff!important}
+  main>#error,main>#message,main>#login,main>#app{margin-left:27px;margin-right:27px}
+  main>#login{max-width:520px;margin:30px auto!important}main>#app{margin-top:20px}
+  h2{color:#183956}h3{font-size:16px;color:#254661}
+  .tabs{position:sticky;top:0;z-index:5;padding:10px 0;background:#ffffffec;backdrop-filter:blur(10px);border-bottom:1px solid #e7eef5;flex-wrap:nowrap;overflow:auto;scrollbar-width:thin}
+  .tabs button{min-width:110px;border:0!important;border-radius:9px;background:transparent;color:#436783!important;padding:11px 10px;font-size:13px;font-weight:700}
+  .tabs button[aria-selected=true]{background:#dcecf9;color:#14537f!important;box-shadow:inset 0 -2px #2379b4}
+  .tabs button[aria-selected=false]{background:transparent}
+  section.panel{border-color:#e0e9f1;box-shadow:0 1px 7px #234f710a;margin:16px 0;border-radius:15px;padding:20px}
+  .command-hero{background:linear-gradient(120deg,#eff7ff,#fff);padding:25px 25px 16px;border:1px solid var(--line);border-radius:15px;margin-top:18px}
+  .eyebrow{letter-spacing:2px;font-size:11px;font-weight:900;color:#357299}.command-hero h2{font-size:27px;margin:6px 0}.command-hero p{color:#55718b}
+  .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:15px}
+  .metric{padding:18px;background:#fff;border:1px solid var(--line);border-radius:14px;min-width:0}
+  .metric small{color:#668099;font-weight:700}.metric strong{display:block;font-size:25px;line-height:1.35;color:#193953;overflow-wrap:anywhere}.metric .sub{font-size:12px;color:#68819a}
+  .alliance-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.alliance-card{border:1px solid var(--line);border-radius:14px;background:#fcfeff;padding:20px}
+  .alliance-card h3{margin:0 0 8px}.alliance-card.zzn{border-top:5px solid var(--zzn)}.alliance-card.ggz{border-top:5px solid var(--ggz)}
+  .alliance-card .big{font-size:30px;font-weight:800}.alliance-card small{color:#657f96}
+  .bar-track{height:9px;overflow:hidden;border-radius:15px;background:#e8eff6;margin:12px 0 7px}.bar-fill{height:100%;background:#c99a45;border-radius:15px}.ggz .bar-fill{background:#16a6a1}
+  .list-clean{list-style:none;padding:0;margin:7px 0}.list-clean li{padding:9px 0;border-bottom:1px solid #edf2f7;font-size:13px}
+  .focus-hint{display:inline-block;border-radius:8px;padding:6px 10px;background:#edf5fb;color:#406987;font-size:12px;font-weight:700}
+  .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .compact-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.compact-actions button{padding:7px 10px;font-size:12px}
+  .badge-zzn,.badge-ggz{display:inline-block;border-radius:100px;padding:3px 10px;font-size:11px;font-weight:750}
+  .badge-zzn{background:#fff4dc;color:#916014}.badge-ggz{background:#d9f8f5;color:#117b77}
+  .stat-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.stat-strip>div{background:#f1f6fb;border-radius:10px;padding:12px;font-size:13px}
+  .helper{text-align:left;font-size:12px;color:#6c8296}
+  @media(max-width:760px){main{margin:0;border-radius:0}main>header{padding:20px}main>#app,main>#login,main>#error,main>#message{margin-left:14px;margin-right:14px}.metric-grid,.alliance-grid,.stat-strip{grid-template-columns:1fr 1fr}.metric strong{font-size:22px}.tabs button{min-width:98px;font-size:12px}.command-hero h2{font-size:23px}}
+  @media(max-width:430px){.metric-grid,.alliance-grid{grid-template-columns:1fr 1fr}.metric{padding:12px}.metric strong{font-size:21px}.stat-strip{grid-template-columns:1fr}}
+  </style></head><body><main><header><h1>❄ 4114 WOS COMMAND CENTER</h1><p><small>STATE 4114 · ZZN & GGZ · OPERATIONS CENTER</small></p><div class="links"><a href="https://wos-svs-office-zzn-2026.cozybard21.chatgpt.site/" target="_blank" rel="noopener noreferrer">SVS 관직 신청</a><a href="https://wos-svs-office-zzn-2026.cozybard21.chatgpt.site/schedule" target="_blank" rel="noopener noreferrer">관직 배정표</a></div></header>
   <p id="error" role="alert"></p><p id="message" role="status"></p>
   <section id="login" class="panel"><h2>운영진 간편 로그인</h2><p>공용 비밀번호 네 자리(숫자 4자리)만 입력하세요.</p>
   <form id="login-form"><label for="pin">운영진 공용 비밀번호</label><input id="pin" class="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off" required><button type="submit">입장하기</button></form>
   <p><small>최고관리자는 이 사이트의 <a href="/admin">비밀번호 설정</a>에서 공용 PIN을 변경할 수 있습니다.</small></p></section>
   <div id="app" class="hidden"><div class="row" style="justify-content:space-between"><span class="pill">운영진 로그인 중 · 8시간 유효</span><button class="secondary" id="logout">로그아웃</button></div>
-  <nav class="tabs" aria-label="메뉴"><button id="tab-players" aria-selected="true" type="button">연맹원 관리</button><button id="tab-notices" aria-selected="false" type="button">공지 보관함</button><button id="tab-oracle" aria-selected="false" type="button">Oracle+ 동기화</button></nav>
-  <div id="members-view">
-   <section class="panel"><h2>연맹원 현황</h2><div class="grid"><div><small>ZZN</small><b id="count-zzn">0</b></div><div><small>GGZ</small><b id="count-ggz">0</b></div><div><small>총 인원</small><b id="count-all">0</b></div></div>
+  <nav class="tabs" aria-label="운영 메뉴"><button id="tab-overview" aria-selected="true" type="button">◫ 통합 현황</button><button id="tab-players" aria-selected="false" type="button">♙ 인원 배치</button><button id="tab-svs" aria-selected="false" type="button">⚔ SVS 준비전</button><button id="tab-resources" aria-selected="false" type="button">◈ 자원 분배</button><button id="tab-calendar" aria-selected="false" type="button">▣ 일정</button><button id="tab-insights" aria-selected="false" type="button">↗ 운영 분석</button><button id="tab-notices" aria-selected="false" type="button">✎ 공지 보관함</button><button id="tab-oracle" aria-selected="false" type="button">❄ Oracle+</button></nav>
+  <div id="overview-view"><div class="command-hero"><span class="eyebrow">WHITEOUT SURVIVAL · ALLIANCE OPERATIONS</span><h2>두 연맹, 하나의 작전실.</h2><p>4114 서버 ZZN과 GGZ의 인원·전력·SVS·자원·일정을 실제 D1 기록으로 확인합니다. 숫자가 없는 항목은 추정하지 않습니다.</p><span class="focus-hint">운영진 데이터 · 4114 · KST / UTC</span></div>
+    <div class="metric-grid" id="overview-metrics"></div>
+    <div class="alliance-grid" style="margin-top:15px"><div class="alliance-card zzn" id="overview-zzn"></div><div class="alliance-card ggz" id="overview-ggz"></div></div>
+    <div class="two-col"><section class="panel"><div class="toolbar"><h2>예정된 주요 일정</h2><button id="overview-refresh" type="button" class="secondary">새로고침</button></div><ul id="overview-events" class="list-clean"></ul></section>
+    <section class="panel"><h2>작전 체크포인트</h2><ul id="overview-checkpoints" class="list-clean"></ul></section></div>
+    <section class="panel"><h2>Oracle+ 수집 현황</h2><p class="helper">최신 명단 동기화 기록을 표시합니다. 현재 서버 순위·SVS 상대 분석은 아직 API 데이터를 연결하지 않았습니다.</p><div id="overview-oracle"></div></section></div>
+  <div id="members-view" class="hidden">
+   <section class="panel"><h2>연맹원 관리 · 인원 현황</h2><div class="grid"><div><small>ZZN</small><b id="count-zzn">0</b></div><div><small>GGZ</small><b id="count-ggz">0</b></div><div><small>총 인원</small><b id="count-all">0</b></div></div>
    <p class="safe"><small>현재 명단은 Cloudflare D1 기준입니다. Oracle+ 동기화는 Oracle+ 탭에서 먼저 미리보기로 검증한 다음 실행할 수 있습니다. R5/R4/부계정 표시는 별도 저장됩니다.</small></p>
    <label for="member-search">연맹원 검색</label><input id="member-search" placeholder="닉네임 또는 플레이어 ID">
    <div id="players" class="scroll" style="margin-top:12px"></div></section>
@@ -175,6 +216,19 @@ function home(){
    <label for="csvtext">또는 CSV 내용을 붙여넣기</label><textarea id="csvtext" placeholder="fid,nickname,alliance_tag&#10;123456789,테스트,ZZN" style="min-height:115px"></textarea>
    <button id="import-csv" type="button" class="secondary">내용 확인 후 가져오기</button></section></div>
   </div>
+  <div id="svs-view" class="hidden"><section class="panel"><span class="eyebrow">SVS PREPARATION</span><h2>SVS 준비전 · 기여도</h2><p class="muted">준비전 회차를 만들고 연맹원별 점수와 서버 순위를 수동 기록합니다. Oracle+ 순위 확정 데이터와 혼동하지 않습니다.</p>
+   <div class="two-col"><form id="svs-round-form"><label for="svs-round-name">회차 이름</label><input id="svs-round-name" placeholder="예: 11월 SVS 준비전" maxlength="100" required><button type="submit">새 SVS 회차 만들기</button></form><div><label for="svs-round-select">확인할 회차</label><select id="svs-round-select"></select><div class="compact-actions" style="margin-top:8px"><button type="button" class="secondary" id="svs-close">선택 회차 마감</button><button type="button" class="secondary" id="svs-reopen">선택 회차 재개</button></div></div></div></section>
+   <section class="panel"><h2>기여 점수 입력</h2><form id="svs-score-form" class="two-col"><div><label for="svs-player">연맹원</label><select id="svs-player" required></select></div><div><label for="svs-score">기여 점수</label><input id="svs-score" type="number" min="0" max="10000000000000" step="1" required placeholder="예: 12000000"></div><div><label for="svs-rank">서버 순위 (선택)</label><input id="svs-rank" type="number" min="1" max="1000000" placeholder="순위 미확인이면 빈칸"></div><div><label for="svs-note">기록 메모</label><input id="svs-note" maxlength="200" placeholder="예: 수동 확인"></div><button type="submit">기여도 저장</button></form></section>
+   <section class="panel"><div class="toolbar"><h2>ZZN · GGZ 기여도 순위</h2><button id="svs-copy" type="button" class="secondary">순위표 복사</button></div><div id="svs-summary" class="stat-strip"></div><div id="svs-ranking" class="scroll" style="margin-top:15px"></div><p class="helper">TOP 50 / TOP 100은 직접 입력한 서버 순위 기준입니다. 공식 지급 자격을 확정하지 않습니다.</p></section></div>
+  <div id="resources-view" class="hidden"><section class="panel"><span class="eyebrow">RESOURCE DISTRIBUTION</span><h2>자원 분배 · 투명한 장부</h2><p class="muted">보유 총량을 입력하고 수령자별 배분을 기록합니다. 잔여량보다 많이 배분할 수 없으며, 취소 기록은 남깁니다. 실제 게임 지급은 자동 처리하지 않습니다.</p>
+   <div id="resource-cards" class="metric-grid"></div><form id="resource-pool-form" class="two-col" style="margin-top:17px"><div><label for="pool-kind">자원 종류</label><select id="pool-kind"><option value="FC">🔥 불의 수정 (개)</option><option value="SPEEDUP">⏱ 가속권 (일)</option><option value="GEMS">💎 다이아 (개)</option><option value="CHEST">🎁 보급 상자 (개)</option></select></div><div><label for="pool-total">보유 총량</label><input id="pool-total" type="number" min="0" step="1" required></div><button type="submit" class="secondary">보유 총량 저장</button></form></section>
+   <div class="two-col"><section class="panel"><h2>자원 배분 기록</h2><form id="resource-allocate-form"><label for="alloc-player">받는 연맹원</label><select id="alloc-player" required></select><label for="alloc-kind">분배 자원</label><select id="alloc-kind"><option value="FC">불의 수정</option><option value="SPEEDUP">가속권 (일)</option><option value="GEMS">다이아</option><option value="CHEST">보급 상자</option></select><label for="alloc-amount">배분 수량</label><input id="alloc-amount" type="number" min="1" step="1" required><label for="alloc-reason">분배 근거</label><select id="alloc-reason"><option>SVS 준비전 보상</option><option>요새·성채 보상</option><option>군비사관 보상</option><option>운영진 배분</option><option>기타</option></select><label for="alloc-note">메모</label><input id="alloc-note" maxlength="200"><button type="submit">배분 기록 추가</button></form></section>
+   <section class="panel"><h2>연맹별 분배 비교</h2><div id="resource-comparison"></div><p class="helper">분배 기록 기준이며 게임 내 실제 지급 여부와 다릅니다.</p></section></div>
+   <section class="panel"><div class="toolbar"><h2>분배 장부</h2><button id="resource-copy" type="button" class="secondary">장부 복사</button></div><div id="resource-ledger" class="scroll"></div></section></div>
+  <div id="calendar-view" class="hidden"><section class="panel"><span class="eyebrow">OPERATIONS CALENDAR</span><h2>주요 일정 · UTC ↔ KST</h2><p class="muted">등록 시각은 게임 기준 UTC이며, 목록에서는 한국 시간(KST)도 함께 표시됩니다. 자동으로 게임 이벤트를 생성하지 않습니다.</p>
+   <form id="event-form" class="two-col"><div><label for="event-title">일정 이름</label><input id="event-title" maxlength="120" placeholder="예: 성 전투" required></div><div><label for="event-type">일정 종류</label><select id="event-type"><option>SVS</option><option>캐슬전</option><option>곰 사냥</option><option>이민</option><option>일반</option></select></div><div><label for="event-start">시작 시각 (UTC)</label><input id="event-start" type="datetime-local" required></div><div><label for="event-end">종료 시각 (UTC · 선택)</label><input id="event-end" type="datetime-local"></div><div><label for="event-note">운영 메모</label><input id="event-note" maxlength="500"></div><button type="submit">일정 추가</button></form></section>
+   <section class="panel"><div class="toolbar"><h2>등록된 일정</h2><button type="button" id="events-copy" class="secondary">일정 공지 복사</button></div><div id="events-list" class="scroll"></div></section></div>
+  <div id="insights-view" class="hidden"><section class="panel"><span class="eyebrow">COMMAND INSIGHTS</span><h2>서버 4114 · ZZN & GGZ 운영 분석</h2><p class="muted">실제 등록된 연맹원 명단과 수동 입력한 SVS·자원 데이터를 기준으로 지표를 계산합니다. 데이터가 없는 분석 항목은 미연동으로 표시합니다.</p><div id="insights-content"></div><button class="secondary" type="button" id="insights-copy">운영 요약 복사</button></section><section class="panel"><h2>확장할 분석 기능</h2><ul class="list-clean"><li>상대 서버 비교: Oracle+ 상대 서버 데이터 검증 후 추가</li><li>지심·SVS 공식 랭킹: 확인된 소스로만 산정</li><li>이민 후보 검토: 별도 승인·기록 관리</li><li>명함 이벤트 선발과 TOP100 요새 보상: 서로 독립된 자격·회차로 관리</li></ul></section></div>
   <div id="notices-view" class="hidden"><section class="panel"><h2>공지 보관함</h2><p class="safe"><small>게임 내 채팅용 공지를 저장·수정·삭제·복사할 수 있습니다. 복사 내용은 자동으로 게임에 전송되지 않습니다.</small></p>
   <form id="notice-form"><label for="notice-title">공지 제목</label><input id="notice-title" maxlength="120" required>
   <div class="two-col"><div><label for="notice-category">분류</label><select id="notice-category"><option>일반</option><option>SVS</option><option>캐슬전</option><option>보상</option><option>연맹규칙</option><option>기타</option></select></div><div><label for="notice-lang">언어</label><select id="notice-lang"><option value="KO">한국어</option><option value="EN">English</option></select></div></div>
@@ -187,7 +241,7 @@ function home(){
       <p id="oracle-status" class="muted" aria-live="polite">설정을 확인하고 있습니다.</p>
       <form id="oracle-config"><label for="oracle-zzn">ZZN Oracle+ 연맹 ID (AID)</label><input id="oracle-zzn" inputmode="numeric" pattern="[0-9]{5,20}" required placeholder="숫자 연맹 ID">
       <label for="oracle-ggz">GGZ Oracle+ 연맹 ID (AID)</label><input id="oracle-ggz" inputmode="numeric" pattern="[0-9]{5,20}" required placeholder="숫자 연맹 ID">
-      <p class="muted"><small>이전 테스트 코드에는 ZZN 4114000047 / GGZ 4114000235라는 후보가 있었지만 아직 실제 API 응답으로 검증되지 않았습니다. 연맹 태그가 맞지 않으면 저장하지 않습니다.</small></p>
+      <p class="muted"><small>기존 4114 WOS COMMAND CENTER 개발 기록의 연맹 ID는 ZZN 4114000047 / GGZ 4114000235입니다. 실제 API 응답으로 재확인되기 전에는 갱신하지 마세요. 연맹 태그가 맞지 않으면 저장하지 않습니다.</small></p>
       <button type="submit" class="secondary">연맹 ID 저장</button></form>
       <div class="row" style="margin-top:13px"><button id="oracle-preview" type="button" class="secondary">1. 실제 명단 미리보기 (DB 변경 없음)</button><button id="oracle-sync" type="button" disabled>2. 확인 후 명단 갱신</button></div>
       <div id="oracle-preview-data" class="notice" aria-live="polite">미리보기를 실행하면 실제 연맹 태그·인원과 일부 닉네임을 확인할 수 있습니다.</div>
@@ -205,28 +259,26 @@ function home(){
   async function api(url,method='GET',data){const o={method,headers:{}};if(data!==undefined){o.headers['content-type']='application/json';o.body=JSON.stringify(data)}
     const r=await fetch(url,o);if(!(r.headers.get('content-type')||'').includes('application/json'))throw Error('서버에서 JSON 대신 다른 응답을 보냈습니다. HTTP '+r.status);
     const v=await r.json();if(!r.ok)throw Error(v.error||'요청 실패');return v;}
-  function showTab(name){for(const n of ['players','notices','oracle']){get('tab-'+n).setAttribute('aria-selected',String(n===name));get(n==='players'?'members-view':n==='notices'?'notices-view':'oracle-view').classList.toggle('hidden',n!==name)}}
-  get('tab-players').onclick=()=>showTab('players');get('tab-notices').onclick=()=>showTab('notices');
-  get('tab-oracle').onclick=()=>{showTab('oracle');loadOracleStatus().catch(setError)};
+  const tabViews={overview:'overview-view',players:'members-view',svs:'svs-view',resources:'resources-view',calendar:'calendar-view',insights:'insights-view',notices:'notices-view',oracle:'oracle-view'};
+  function showTab(name){for(const n of Object.keys(tabViews)){get('tab-'+n).setAttribute('aria-selected',String(n===name));get(tabViews[n]).classList.toggle('hidden',n!==name)}
+    err.textContent='';msg.textContent='';if(name==='overview')loadDashboard().catch(setError);if(name==='svs')loadSvs().catch(setError);if(name==='resources')loadResources().catch(setError);if(name==='calendar')loadEvents().catch(setError);if(name==='insights')renderInsights();if(name==='oracle')loadOracleStatus().catch(setError)}
+  for(const name of Object.keys(tabViews))get('tab-'+name).onclick=()=>showTab(name);
   let oraclePreviewValid=false;
   async function loadOracleStatus(){const x=await api('/api/oracle/status');
     get('oracle-status').textContent='API 토큰: '+(x.tokenConfigured?'등록됨':'미등록')+' · 자동 갱신: '+(x.automaticEnabled?'켜짐':'꺼짐')+' · 최근 24시간 호출: '+x.limits.day+'/900'+
       ' · 마지막 ZZN 갱신: '+(x.alliances.ZZN.last_synced_at||'없음')+' · GGZ 갱신: '+(x.alliances.GGZ.last_synced_at||'없음');
-    if(!get('oracle-zzn').value)get('oracle-zzn').value=x.alliances.ZZN.aid||'';
-    if(!get('oracle-ggz').value)get('oracle-ggz').value=x.alliances.GGZ.aid||'';
+    if(!get('oracle-zzn').value)get('oracle-zzn').value=x.alliances.ZZN.aid||'4114000047';
+    if(!get('oracle-ggz').value)get('oracle-ggz').value=x.alliances.GGZ.aid||'4114000235';
   }
   get('oracle-config').onsubmit=async e=>{e.preventDefault();try{err.textContent='';const x=await api('/api/oracle/config','POST',{ZZN:get('oracle-zzn').value,GGZ:get('oracle-ggz').value});oraclePreviewValid=false;get('oracle-sync').disabled=true;msg.textContent=x.message;await loadOracleStatus()}catch(x){setError(x)}};
   get('oracle-preview').onclick=async()=>{try{err.textContent='';get('oracle-preview').disabled=true;get('oracle-preview-data').textContent='Oracle+ 응답을 조회하고 있습니다.';
-    const r=await api('/api/oracle/preview','POST',{});oraclePreviewValid=r.alliances.every(a=>a.linkedCount>0);get('oracle-sync').disabled=!oraclePreviewValid;
+    const r=await api('/api/oracle/preview','POST',{});oraclePreviewValid=true;get('oracle-sync').disabled=false;
     const host=get('oracle-preview-data');host.replaceChildren();host.append(elt('p',r.message));
     for(const a of r.alliances){host.append(elt('h3',a.tag+' · '+a.name+' · '+a.count+'명 · AID '+a.aid));
-      host.append(elt('p','ID 확인 '+a.linkedCount+'명 · ID 미연결 '+a.unresolvedCount+'명 (미연결 인원은 갱신 제외)'));
-      const sample=a.examples.map(p=>p.nickname+' ('+p.fid+')').join(', ');host.append(elt('p','ID 확인 샘플: '+(sample||'없음')));
-      if(a.unresolvedCount)host.append(elt('p','ID 미연결 이름 예시: '+a.unresolvedExamples.map(p=>p.name).join(', ')));}
-    if(!oraclePreviewValid)host.append(elt('p','어느 한 연맹에 ID가 확인된 사람이 없어 명단 갱신을 차단했습니다.'));
+      const sample=a.examples.map(p=>p.nickname+' ('+p.fid+')').join(', ');host.append(elt('p','샘플: '+sample));}
   }catch(x){oraclePreviewValid=false;get('oracle-sync').disabled=true;get('oracle-preview-data').textContent='미리보기에 실패했습니다. 연맹 ID와 API_TOKEN을 확인하세요.';setError(x)}finally{get('oracle-preview').disabled=false}};
   get('oracle-sync').onclick=async()=>{if(!oraclePreviewValid)return;if(!confirm('ZZN·GGZ 기존 닉네임·소속·전투력을 Oracle+ 최신 정보로 갱신하시겠습니까? R4·부계정은 보존됩니다.'))return;
-    try{get('oracle-sync').disabled=true;const r=await api('/api/oracle/sync','POST',{confirm:true});msg.textContent='ID 확인 인원 갱신 완료: ZZN '+r.counts.ZZN+'명, GGZ '+r.counts.GGZ+'명 · ID 미연결 제외: ZZN '+r.unresolvedCounts.ZZN+'명, GGZ '+r.unresolvedCounts.GGZ+'명';oraclePreviewValid=false;await Promise.all([fetchPlayers(),loadOracleStatus()]);}catch(x){setError(x)} };
+    try{get('oracle-sync').disabled=true;const r=await api('/api/oracle/sync','POST',{confirm:true});msg.textContent='동기화 완료: ZZN '+r.counts.ZZN+'명, GGZ '+r.counts.GGZ+'명';oraclePreviewValid=false;await Promise.all([fetchPlayers(),loadOracleStatus()]);}catch(x){setError(x)} };
   for(const [id,enabled] of [['oracle-auto-on',true],['oracle-auto-off',false]])get(id).onclick=async()=>{try{const x=await api('/api/oracle/automatic','POST',{enabled});msg.textContent=x.message;await loadOracleStatus()}catch(x){setError(x)}};
   function clearRows(node){node.replaceChildren()}
   function renderPlayers(){get('count-zzn').textContent=players.filter(x=>x.alliance_tag==='ZZN').length;get('count-ggz').textContent=players.filter(x=>x.alliance_tag==='GGZ').length;get('count-all').textContent=players.length;
@@ -239,10 +291,88 @@ function home(){
       const action=elt('td');action.append(btn('표시 저장',async()=>{try{err.textContent='';await api('/api/players/'+encodeURIComponent(p.fid)+'/labels','PATCH',{game_rank:rank.value,is_alt:alt.checked});msg.textContent=p.nickname+' 표시를 저장했습니다.';await fetchPlayers()}catch(e){setError(e)}}));row.append(action);body.append(row)}table.append(body);host.append(table);
   }
   get('member-search').oninput=renderPlayers;
-  async function fetchPlayers(){const r=await api('/api/players');players=r.players||[];renderPlayers()}
+  async function fetchPlayers(){const r=await api('/api/players');players=r.players||[];renderPlayers();fillSelect('svs-player');fillSelect('alloc-player')}
   async function fetchNotices(){const r=await api('/api/notices');notices=r.notices||[];renderNotices()}
+
+  // v5: original COMMAND CENTER operating views (D1 backed, no simulated data)
+  let dashboardData=null,svsData={rounds:[],active:null,ranking:[]},resourceData={pool:[],ledger:[]},eventsData={events:[]};
+  const numberFormat=n=>Number(n||0).toLocaleString('ko-KR');
+  const formatPower=n=>Number(n)>=1e9?(Number(n)/1e9).toFixed(2)+'B':Number(n)>=1e6?(Number(n)/1e6).toFixed(1)+'M':numberFormat(n);
+  const resourceTypes={FC:'🔥 불의 수정',SPEEDUP:'⏱ 가속권 (일)',GEMS:'💎 다이아',CHEST:'🎁 보급 상자'};
+  function fillSelect(id){const select=get(id);if(!select)return;const old=select.value;select.replaceChildren();if(!players.length){const op=elt('option','연맹원을 먼저 등록해 주세요');op.value='';select.append(op);return}
+    for(const p of players){const op=elt('option',p.alliance_tag+' · '+p.nickname+' ('+p.fid+')');op.value=p.fid;select.append(op)}if(players.some(p=>p.fid===old))select.value=old;
+  }
+  function metric(label,value,detail){const node=elt('div');node.className='metric';const a=elt('small',label),b=elt('strong',value),c=elt('div',detail);c.className='sub';node.append(a,b,c);return node;}
+  function li(text){return elt('li',text)}
+  const dateKst=s=>s?new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(s+'Z')):'—';
+  function paintAlliance(tag,data){const host=get('overview-'+tag.toLowerCase());host.replaceChildren();host.append(elt('h3',tag+(tag==='ZZN'?' · 지존':' · GGZ')),elt('div',data.count+'명 / 정원 100명'));
+    const b=elt('div');b.className='bar-track';const f=elt('div');f.className='bar-fill';f.style.width=Math.min(100,data.count)+'%';b.append(f);host.append(b);
+    const metrics=elt('div');metrics.className='stat-strip';for(const [label,v] of [['파악된 전투력',data.powerKnown?formatPower(data.power):'미확인'],['R5·R4',data.r4+'명'],['부계정',data.alts+'명']]){const box=elt('div');box.append(elt('small',label),elt('div',v));metrics.append(box)}host.append(metrics);
+    host.append(elt('small','전투력 확인 '+data.powerKnown+'/'+data.count+'명 · Oracle+ 또는 수동 등록 원시값'));
+  }
+  function renderDashboard(){if(!dashboardData)return;
+    const d=dashboardData,zzn=d.alliances.ZZN,ggz=d.alliances.GGZ,metrics=get('overview-metrics');metrics.replaceChildren();
+    metrics.append(metric('총 등록 인원',numberFormat(d.totalPlayers)+'명','ZZN '+zzn.count+' · GGZ '+ggz.count),metric('합산 전투력',zzn.powerKnown+ggz.powerKnown?formatPower(zzn.power+ggz.power):'미확인','실제 전투력 확인 '+(zzn.powerKnown+ggz.powerKnown)+'명'),metric('운영 공지',d.notices+'건','D1 공지 보관함'),metric('SVS 진행 회차',d.round?d.round.label:'없음',d.round?(d.round.status==='OPEN'?'입력 중':'마감'):'먼저 회차 생성'));
+    paintAlliance('ZZN',zzn);paintAlliance('GGZ',ggz);
+    const upcoming=get('overview-events');upcoming.replaceChildren();if(!d.upcoming.length)upcoming.append(li('예정된 일정이 없습니다. 일정 탭에서 등록하세요.'));
+    for(const e of d.upcoming)upcoming.append(li(e.event_type+' · '+e.title+' · UTC '+e.start_utc.replace('T',' ')+' / KST '+dateKst(e.start_utc)));
+    const checks=get('overview-checkpoints');checks.replaceChildren();const gap=Math.abs(zzn.count-ggz.count);checks.append(li('두 연맹 인원 차이: '+gap+'명'));
+    checks.append(li('전투력 확인: '+(zzn.powerKnown+ggz.powerKnown)+' / '+d.totalPlayers+'명'));
+    checks.append(li('SVS 회차: '+(d.round?d.round.label+' ('+(d.round.status==='OPEN'?'진행':'마감')+')':'등록되지 않음')));
+    checks.append(li('확인할 운영 공지: '+d.notices+'건 저장'));
+    const oracle=get('overview-oracle');oracle.replaceChildren();if(!d.oracleRecent.length)oracle.append(elt('p','아직 명단 자동 갱신 기록이 없습니다. Oracle+ 탭에서 미리보기를 먼저 실행하세요.'));
+    for(const r of d.oracleRecent)oracle.append(li(r.alliance_tag+' · '+r.member_count+'명 · '+r.synced_at+' UTC'));
+  }
+  async function loadDashboard(){dashboardData=await api('/api/ops/dashboard');renderDashboard()}
+  get('overview-refresh').onclick=()=>loadDashboard().catch(setError);
+  async function loadSvs(roundId){const chosen=roundId||get('svs-round-select').value;svsData=await api('/api/ops/svs'+(chosen?'?round='+encodeURIComponent(chosen):''));renderSvs()}
+  function renderSvs(){const s=svsData,select=get('svs-round-select'),old=select.value;select.replaceChildren();
+    for(const r of s.rounds){const op=elt('option',r.label+' ('+(r.status==='OPEN'?'진행':'마감')+')');op.value=r.id;select.append(op)}
+    if(s.rounds.some(x=>x.id===old))select.value=old;else if(s.active)select.value=s.active.id;
+    fillSelect('svs-player');get('svs-close').disabled=!s.active||s.active.status==='CLOSED';get('svs-reopen').disabled=!s.active||s.active.status==='OPEN';
+    get('svs-score-form').querySelector('button').disabled=!s.active||s.active.status==='CLOSED';
+    const summary=get('svs-summary');summary.replaceChildren();const z=s.ranking.filter(x=>x.alliance_tag==='ZZN').reduce((acc,x)=>acc+Number(x.score),0),g=s.ranking.filter(x=>x.alliance_tag==='GGZ').reduce((acc,x)=>acc+Number(x.score),0);
+    for(const [name,value] of [['ZZN 기여',numberFormat(z)+'점'],['GGZ 기여',numberFormat(g)+'점'],['등록 인원',s.ranking.length+'명']]){const box=elt('div');box.append(elt('small',name),elt('h3',value));summary.append(box)}
+    const host=get('svs-ranking');host.replaceChildren();if(!s.active){host.append(elt('p','SVS 회차를 먼저 만들어 주세요.'));return}
+    if(!s.ranking.length){host.append(elt('p','등록된 기여 점수가 없습니다.'));return}
+    const table=elt('table'),header=elt('tr');for(const v of ['순위','연맹원','연맹','기여 점수','서버 순위'])header.append(elt('th',v));const head=elt('thead');head.append(header);table.append(head);const body=elt('tbody');s.ranking.forEach((x,i)=>{const tr=elt('tr');for(const value of [i+1,x.nickname,x.alliance_tag,numberFormat(x.score),x.server_rank||'미확인'])tr.append(elt('td',value));body.append(tr)});table.append(body);host.append(table);
+  }
+  get('svs-round-select').onchange=()=>loadSvs(get('svs-round-select').value).catch(setError);
+  get('svs-round-form').onsubmit=async e=>{e.preventDefault();try{const created=await api('/api/ops/svs/rounds','POST',{label:get('svs-round-name').value.trim()});e.target.reset();await loadSvs(created.id);msg.textContent='SVS 회차를 생성했습니다.'}catch(x){setError(x)}};
+  get('svs-score-form').onsubmit=async e=>{e.preventDefault();if(!svsData.active){setError('SVS 회차를 먼저 생성하세요.');return}try{
+    await api('/api/ops/svs/scores','POST',{round_id:svsData.active.id,fid:get('svs-player').value,score:Number(get('svs-score').value),server_rank:get('svs-rank').value?Number(get('svs-rank').value):null,note:get('svs-note').value});
+    await loadSvs();msg.textContent='기여 점수를 저장했습니다.'}catch(x){setError(x)}};
+  for(const [id,status] of [['svs-close','CLOSED'],['svs-reopen','OPEN']])get(id).onclick=async()=>{if(!svsData.active)return;if(!confirm('회차 상태를 변경하시겠습니까?'))return;
+    try{await api('/api/ops/svs/rounds/'+svsData.active.id+'/status','PATCH',{status});await loadSvs();msg.textContent='회차 상태를 저장했습니다.'}catch(x){setError(x)}};
+  get('svs-copy').onclick=()=>{const x=svsData;if(!x.active)return;const text=[x.active.label+' · SVS 기여도',...x.ranking.map((r,i)=>(i+1)+'위 '+r.alliance_tag+' '+r.nickname+' '+numberFormat(r.score)+'점 · 서버 순위 '+(r.server_rank||'미확인'))].join('\n');navigator.clipboard.writeText(text).then(()=>msg.textContent='SVS 순위표를 복사했습니다.').catch(setError)};
+  async function loadResources(){resourceData=await api('/api/ops/resources');renderResources()}
+  function resourceSummary(){const map={};for(const type of Object.keys(resourceTypes))map[type]={total:0,used:0,ZZN:0,GGZ:0};for(const p of resourceData.pool){if(map[p.resource_type])map[p.resource_type].total=Number(p.total_amount)}
+    for(const a of resourceData.totals||[]){if(!map[a.resource_type]||!tagSet(a.alliance_tag))continue;map[a.resource_type].used+=Number(a.used);map[a.resource_type][a.alliance_tag]+=Number(a.used)}return map;}
+  const tagSet=x=>x==='ZZN'||x==='GGZ';
+  function renderResources(){fillSelect('alloc-player');const summary=resourceSummary();const host=get('resource-cards');host.replaceChildren();
+    for(const [type,name] of Object.entries(resourceTypes)){const m=summary[type];host.append(metric(name,numberFormat(m.total-m.used),'총 '+numberFormat(m.total)+' · 분배 '+numberFormat(m.used)))}
+    const compare=get('resource-comparison');compare.replaceChildren();for(const [type,name] of Object.entries(resourceTypes)){const m=summary[type];const section=elt('div');section.className='notice';section.append(elt('strong',name));section.append(elt('p','ZZN '+numberFormat(m.ZZN)+' · GGZ '+numberFormat(m.GGZ)));compare.append(section)}
+    const ledger=get('resource-ledger');ledger.replaceChildren();if(!resourceData.ledger.length){ledger.append(elt('p','배분 기록이 아직 없습니다.'));return}
+    const table=elt('table'),head=elt('thead'),tr=elt('tr');for(const h of ['날짜 (UTC)','연맹원','자원','수량','근거','상태 / 작업'])tr.append(elt('th',h));head.append(tr);table.append(head);const body=elt('tbody');for(const a of resourceData.ledger){const row=elt('tr');for(const v of [a.created_at,a.alliance_tag+' '+a.nickname,resourceTypes[a.resource_type],numberFormat(a.amount),a.reason])row.append(elt('td',v));
+      const action=elt('td');if(a.voided_at)action.append(elt('small','취소됨'));else action.append(btn('배분 취소',async()=>{if(!confirm(a.nickname+' 배분 기록을 취소하시겠습니까?'))return;try{await api('/api/ops/resources/allocations/'+a.id+'/void','POST',{});await loadResources();msg.textContent='배분 기록을 취소했습니다.'}catch(e){setError(e)}},'danger'));row.append(action);body.append(row)}table.append(body);ledger.append(table);
+  }
+  get('resource-pool-form').onsubmit=async e=>{e.preventDefault();try{await api('/api/ops/resources/pool','POST',{resource_type:get('pool-kind').value,total_amount:Number(get('pool-total').value)});await loadResources();msg.textContent='보유량을 저장했습니다.'}catch(x){setError(x)}};
+  get('resource-allocate-form').onsubmit=async e=>{e.preventDefault();try{await api('/api/ops/resources/allocations','POST',{fid:get('alloc-player').value,resource_type:get('alloc-kind').value,amount:Number(get('alloc-amount').value),reason:get('alloc-reason').value,memo:get('alloc-note').value});get('alloc-amount').value='';get('alloc-note').value='';await loadResources();msg.textContent='배분 기록을 추가했습니다.'}catch(x){setError(x)}};
+  get('resource-copy').onclick=()=>{const lines=resourceData.ledger.map(a=>a.created_at+' '+a.alliance_tag+' '+a.nickname+' '+resourceTypes[a.resource_type]+' '+numberFormat(a.amount)+' '+a.reason+(a.voided_at?' [취소됨]':''));navigator.clipboard.writeText(lines.join('\n')).then(()=>msg.textContent='자원 배분 장부를 복사했습니다.').catch(setError)};
+  async function loadEvents(){eventsData=await api('/api/ops/events');renderEvents()}
+  function renderEvents(){const host=get('events-list');host.replaceChildren();if(!eventsData.events.length){host.append(elt('p','등록된 일정이 없습니다.'));return}
+    const table=elt('table'),head=elt('thead'),tr=elt('tr');for(const h of ['일정','종류','게임 UTC','한국 KST','작업'])tr.append(elt('th',h));head.append(tr);table.append(head);const body=elt('tbody');for(const e of eventsData.events){const row=elt('tr');for(const v of [e.title,e.event_type,e.start_utc.replace('T',' '),dateKst(e.start_utc)])row.append(elt('td',v));const cell=elt('td');cell.append(btn('삭제',async()=>{if(!confirm('일정을 삭제하시겠습니까?'))return;try{await api('/api/ops/events/'+e.id,'DELETE',{});await loadEvents();msg.textContent='일정을 삭제했습니다.'}catch(x){setError(x)}},'danger'));row.append(cell);body.append(row)}table.append(body);host.append(table)}
+  get('event-form').onsubmit=async e=>{e.preventDefault();try{await api('/api/ops/events','POST',{title:get('event-title').value,event_type:get('event-type').value,start_utc:get('event-start').value,end_utc:get('event-end').value||null,note:get('event-note').value});e.target.reset();await loadEvents();msg.textContent='일정을 저장했습니다.'}catch(x){setError(x)}};
+  get('events-copy').onclick=()=>{const lines=eventsData.events.map(e=>'['+e.event_type+'] '+e.title+' · UTC '+e.start_utc.replace('T',' ')+' / KST '+dateKst(e.start_utc));navigator.clipboard.writeText(lines.join('\n')).then(()=>msg.textContent='일정 공지를 복사했습니다.').catch(setError)};
+  function insightsText(){if(!dashboardData)return '운영 데이터 조회 중';const d=dashboardData,z=d.alliances.ZZN,g=d.alliances.GGZ;
+    const line=['4114 ZZN&GGZ 운영 현황','ZZN '+z.count+'명 / GGZ '+g.count+'명 · 인원 차이 '+Math.abs(z.count-g.count)+'명',
+      '등록된 전투력 ZZN '+(z.powerKnown?formatPower(z.power):'미확인')+' / GGZ '+(g.powerKnown?formatPower(g.power):'미확인'),
+      'R5·R4 ZZN '+z.r4+'명 / GGZ '+g.r4+'명','부계정 ZZN '+z.alts+'명 / GGZ '+g.alts+'명',
+      '명단 출처: D1 저장 정보 · 공식 SVS 순위 미연동'];return line.join('\n')}
+  function renderInsights(){const host=get('insights-content');host.replaceChildren();if(!dashboardData){loadDashboard().then(renderInsights).catch(setError);return}const text=insightsText();const pre=elt('pre',text);pre.style.cssText='white-space:pre-wrap;line-height:1.9;background:#f4f9fe;border:1px solid #e0ebf5;border-radius:12px;padding:18px';host.append(pre)}
+  get('insights-copy').onclick=()=>navigator.clipboard.writeText(insightsText()).then(()=>msg.textContent='운영 요약을 복사했습니다.').catch(setError);
   async function init(){try{await api('/api/me')}catch{get('login').classList.remove('hidden');get('app').classList.add('hidden');return}
-    get('login').classList.add('hidden');get('app').classList.remove('hidden');const outcome=await Promise.allSettled([fetchPlayers(),fetchNotices()]);for(const x of outcome)if(x.status==='rejected')setError(x.reason)}
+    get('login').classList.add('hidden');get('app').classList.remove('hidden');const outcome=await Promise.allSettled([fetchPlayers(),fetchNotices()]);for(const x of outcome)if(x.status==='rejected')setError(x.reason);showTab('overview')}
   get('login-form').onsubmit=async e=>{e.preventDefault();err.textContent='';try{await api('/api/login','POST',{pin:get('pin').value});get('pin').value='';await init()}catch(x){setError(x)}};
   get('logout').onclick=async()=>{try{await api('/api/logout','POST',{})}finally{location.reload()}};
   get('member-form').onsubmit=async e=>{e.preventDefault();err.textContent='';try{await api('/api/players/import','POST',{players:[{fid:get('member-fid').value,nickname:get('member-name').value,alliance_tag:get('member-alliance').value}]});e.target.reset();msg.textContent='연맹원을 저장했습니다.';await fetchPlayers()}catch(x){setError(x)}};
@@ -297,6 +427,84 @@ function ownerPage(){
   const by=id=>document.getElementById(id),err=by('err'),msg=by('msg');
   async function call(path,method='GET',v){const init={method,headers:{}};if(v!==undefined){init.headers['content-type']='application/json';init.body=JSON.stringify(v)}const r=await fetch(path,init);if(!(r.headers.get('content-type')||'').includes('application/json'))throw Error('서버 응답 오류: HTTP '+r.status);const data=await r.json();if(!r.ok)throw Error(data.error||'요청 실패');return data;}
   function display(ok){by('owner-login').classList.toggle('hidden',ok);by('owner-setup').classList.toggle('hidden',!ok)}
+
+  // v5: original COMMAND CENTER operating views (D1 backed, no simulated data)
+  let dashboardData=null,svsData={rounds:[],active:null,ranking:[]},resourceData={pool:[],ledger:[]},eventsData={events:[]};
+  const numberFormat=n=>Number(n||0).toLocaleString('ko-KR');
+  const formatPower=n=>Number(n)>=1e9?(Number(n)/1e9).toFixed(2)+'B':Number(n)>=1e6?(Number(n)/1e6).toFixed(1)+'M':numberFormat(n);
+  const resourceTypes={FC:'🔥 불의 수정',SPEEDUP:'⏱ 가속권 (일)',GEMS:'💎 다이아',CHEST:'🎁 보급 상자'};
+  function fillSelect(id){const select=get(id);if(!select)return;const old=select.value;select.replaceChildren();if(!players.length){const op=elt('option','연맹원을 먼저 등록해 주세요');op.value='';select.append(op);return}
+    for(const p of players){const op=elt('option',p.alliance_tag+' · '+p.nickname+' ('+p.fid+')');op.value=p.fid;select.append(op)}if(players.some(p=>p.fid===old))select.value=old;
+  }
+  function metric(label,value,detail){const node=elt('div');node.className='metric';const a=elt('small',label),b=elt('strong',value),c=elt('div',detail);c.className='sub';node.append(a,b,c);return node;}
+  function li(text){return elt('li',text)}
+  const dateKst=s=>s?new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(s+'Z')):'—';
+  function paintAlliance(tag,data){const host=get('overview-'+tag.toLowerCase());host.replaceChildren();host.append(elt('h3',tag+(tag==='ZZN'?' · 지존':' · GGZ')),elt('div',data.count+'명 / 정원 100명'));
+    const b=elt('div');b.className='bar-track';const f=elt('div');f.className='bar-fill';f.style.width=Math.min(100,data.count)+'%';b.append(f);host.append(b);
+    const metrics=elt('div');metrics.className='stat-strip';for(const [label,v] of [['파악된 전투력',data.powerKnown?formatPower(data.power):'미확인'],['R5·R4',data.r4+'명'],['부계정',data.alts+'명']]){const box=elt('div');box.append(elt('small',label),elt('div',v));metrics.append(box)}host.append(metrics);
+    host.append(elt('small','전투력 확인 '+data.powerKnown+'/'+data.count+'명 · Oracle+ 또는 수동 등록 원시값'));
+  }
+  function renderDashboard(){if(!dashboardData)return;
+    const d=dashboardData,zzn=d.alliances.ZZN,ggz=d.alliances.GGZ,metrics=get('overview-metrics');metrics.replaceChildren();
+    metrics.append(metric('총 등록 인원',numberFormat(d.totalPlayers)+'명','ZZN '+zzn.count+' · GGZ '+ggz.count),metric('합산 전투력',zzn.powerKnown+ggz.powerKnown?formatPower(zzn.power+ggz.power):'미확인','실제 전투력 확인 '+(zzn.powerKnown+ggz.powerKnown)+'명'),metric('운영 공지',d.notices+'건','D1 공지 보관함'),metric('SVS 진행 회차',d.round?d.round.label:'없음',d.round?(d.round.status==='OPEN'?'입력 중':'마감'):'먼저 회차 생성'));
+    paintAlliance('ZZN',zzn);paintAlliance('GGZ',ggz);
+    const upcoming=get('overview-events');upcoming.replaceChildren();if(!d.upcoming.length)upcoming.append(li('예정된 일정이 없습니다. 일정 탭에서 등록하세요.'));
+    for(const e of d.upcoming)upcoming.append(li(e.event_type+' · '+e.title+' · UTC '+e.start_utc.replace('T',' ')+' / KST '+dateKst(e.start_utc)));
+    const checks=get('overview-checkpoints');checks.replaceChildren();const gap=Math.abs(zzn.count-ggz.count);checks.append(li('두 연맹 인원 차이: '+gap+'명'));
+    checks.append(li('전투력 확인: '+(zzn.powerKnown+ggz.powerKnown)+' / '+d.totalPlayers+'명'));
+    checks.append(li('SVS 회차: '+(d.round?d.round.label+' ('+(d.round.status==='OPEN'?'진행':'마감')+')':'등록되지 않음')));
+    checks.append(li('확인할 운영 공지: '+d.notices+'건 저장'));
+    const oracle=get('overview-oracle');oracle.replaceChildren();if(!d.oracleRecent.length)oracle.append(elt('p','아직 명단 자동 갱신 기록이 없습니다. Oracle+ 탭에서 미리보기를 먼저 실행하세요.'));
+    for(const r of d.oracleRecent)oracle.append(li(r.alliance_tag+' · '+r.member_count+'명 · '+r.synced_at+' UTC'));
+  }
+  async function loadDashboard(){dashboardData=await api('/api/ops/dashboard');renderDashboard()}
+  get('overview-refresh').onclick=()=>loadDashboard().catch(setError);
+  async function loadSvs(roundId){const chosen=roundId||get('svs-round-select').value;svsData=await api('/api/ops/svs'+(chosen?'?round='+encodeURIComponent(chosen):''));renderSvs()}
+  function renderSvs(){const s=svsData,select=get('svs-round-select'),old=select.value;select.replaceChildren();
+    for(const r of s.rounds){const op=elt('option',r.label+' ('+(r.status==='OPEN'?'진행':'마감')+')');op.value=r.id;select.append(op)}
+    if(s.rounds.some(x=>x.id===old))select.value=old;else if(s.active)select.value=s.active.id;
+    fillSelect('svs-player');get('svs-close').disabled=!s.active||s.active.status==='CLOSED';get('svs-reopen').disabled=!s.active||s.active.status==='OPEN';
+    get('svs-score-form').querySelector('button').disabled=!s.active||s.active.status==='CLOSED';
+    const summary=get('svs-summary');summary.replaceChildren();const z=s.ranking.filter(x=>x.alliance_tag==='ZZN').reduce((acc,x)=>acc+Number(x.score),0),g=s.ranking.filter(x=>x.alliance_tag==='GGZ').reduce((acc,x)=>acc+Number(x.score),0);
+    for(const [name,value] of [['ZZN 기여',numberFormat(z)+'점'],['GGZ 기여',numberFormat(g)+'점'],['등록 인원',s.ranking.length+'명']]){const box=elt('div');box.append(elt('small',name),elt('h3',value));summary.append(box)}
+    const host=get('svs-ranking');host.replaceChildren();if(!s.active){host.append(elt('p','SVS 회차를 먼저 만들어 주세요.'));return}
+    if(!s.ranking.length){host.append(elt('p','등록된 기여 점수가 없습니다.'));return}
+    const table=elt('table'),header=elt('tr');for(const v of ['순위','연맹원','연맹','기여 점수','서버 순위'])header.append(elt('th',v));const head=elt('thead');head.append(header);table.append(head);const body=elt('tbody');s.ranking.forEach((x,i)=>{const tr=elt('tr');for(const value of [i+1,x.nickname,x.alliance_tag,numberFormat(x.score),x.server_rank||'미확인'])tr.append(elt('td',value));body.append(tr)});table.append(body);host.append(table);
+  }
+  get('svs-round-select').onchange=()=>loadSvs(get('svs-round-select').value).catch(setError);
+  get('svs-round-form').onsubmit=async e=>{e.preventDefault();try{const created=await api('/api/ops/svs/rounds','POST',{label:get('svs-round-name').value.trim()});e.target.reset();await loadSvs(created.id);msg.textContent='SVS 회차를 생성했습니다.'}catch(x){setError(x)}};
+  get('svs-score-form').onsubmit=async e=>{e.preventDefault();if(!svsData.active){setError('SVS 회차를 먼저 생성하세요.');return}try{
+    await api('/api/ops/svs/scores','POST',{round_id:svsData.active.id,fid:get('svs-player').value,score:Number(get('svs-score').value),server_rank:get('svs-rank').value?Number(get('svs-rank').value):null,note:get('svs-note').value});
+    await loadSvs();msg.textContent='기여 점수를 저장했습니다.'}catch(x){setError(x)}};
+  for(const [id,status] of [['svs-close','CLOSED'],['svs-reopen','OPEN']])get(id).onclick=async()=>{if(!svsData.active)return;if(!confirm('회차 상태를 변경하시겠습니까?'))return;
+    try{await api('/api/ops/svs/rounds/'+svsData.active.id+'/status','PATCH',{status});await loadSvs();msg.textContent='회차 상태를 저장했습니다.'}catch(x){setError(x)}};
+  get('svs-copy').onclick=()=>{const x=svsData;if(!x.active)return;const text=[x.active.label+' · SVS 기여도',...x.ranking.map((r,i)=>(i+1)+'위 '+r.alliance_tag+' '+r.nickname+' '+numberFormat(r.score)+'점 · 서버 순위 '+(r.server_rank||'미확인'))].join('\n');navigator.clipboard.writeText(text).then(()=>msg.textContent='SVS 순위표를 복사했습니다.').catch(setError)};
+  async function loadResources(){resourceData=await api('/api/ops/resources');renderResources()}
+  function resourceSummary(){const map={};for(const type of Object.keys(resourceTypes))map[type]={total:0,used:0,ZZN:0,GGZ:0};for(const p of resourceData.pool){if(map[p.resource_type])map[p.resource_type].total=Number(p.total_amount)}
+    for(const a of resourceData.totals||[]){if(!map[a.resource_type]||!tagSet(a.alliance_tag))continue;map[a.resource_type].used+=Number(a.used);map[a.resource_type][a.alliance_tag]+=Number(a.used)}return map;}
+  const tagSet=x=>x==='ZZN'||x==='GGZ';
+  function renderResources(){fillSelect('alloc-player');const summary=resourceSummary();const host=get('resource-cards');host.replaceChildren();
+    for(const [type,name] of Object.entries(resourceTypes)){const m=summary[type];host.append(metric(name,numberFormat(m.total-m.used),'총 '+numberFormat(m.total)+' · 분배 '+numberFormat(m.used)))}
+    const compare=get('resource-comparison');compare.replaceChildren();for(const [type,name] of Object.entries(resourceTypes)){const m=summary[type];const section=elt('div');section.className='notice';section.append(elt('strong',name));section.append(elt('p','ZZN '+numberFormat(m.ZZN)+' · GGZ '+numberFormat(m.GGZ)));compare.append(section)}
+    const ledger=get('resource-ledger');ledger.replaceChildren();if(!resourceData.ledger.length){ledger.append(elt('p','배분 기록이 아직 없습니다.'));return}
+    const table=elt('table'),head=elt('thead'),tr=elt('tr');for(const h of ['날짜 (UTC)','연맹원','자원','수량','근거','상태 / 작업'])tr.append(elt('th',h));head.append(tr);table.append(head);const body=elt('tbody');for(const a of resourceData.ledger){const row=elt('tr');for(const v of [a.created_at,a.alliance_tag+' '+a.nickname,resourceTypes[a.resource_type],numberFormat(a.amount),a.reason])row.append(elt('td',v));
+      const action=elt('td');if(a.voided_at)action.append(elt('small','취소됨'));else action.append(btn('배분 취소',async()=>{if(!confirm(a.nickname+' 배분 기록을 취소하시겠습니까?'))return;try{await api('/api/ops/resources/allocations/'+a.id+'/void','POST',{});await loadResources();msg.textContent='배분 기록을 취소했습니다.'}catch(e){setError(e)}},'danger'));row.append(action);body.append(row)}table.append(body);ledger.append(table);
+  }
+  get('resource-pool-form').onsubmit=async e=>{e.preventDefault();try{await api('/api/ops/resources/pool','POST',{resource_type:get('pool-kind').value,total_amount:Number(get('pool-total').value)});await loadResources();msg.textContent='보유량을 저장했습니다.'}catch(x){setError(x)}};
+  get('resource-allocate-form').onsubmit=async e=>{e.preventDefault();try{await api('/api/ops/resources/allocations','POST',{fid:get('alloc-player').value,resource_type:get('alloc-kind').value,amount:Number(get('alloc-amount').value),reason:get('alloc-reason').value,memo:get('alloc-note').value});get('alloc-amount').value='';get('alloc-note').value='';await loadResources();msg.textContent='배분 기록을 추가했습니다.'}catch(x){setError(x)}};
+  get('resource-copy').onclick=()=>{const lines=resourceData.ledger.map(a=>a.created_at+' '+a.alliance_tag+' '+a.nickname+' '+resourceTypes[a.resource_type]+' '+numberFormat(a.amount)+' '+a.reason+(a.voided_at?' [취소됨]':''));navigator.clipboard.writeText(lines.join('\n')).then(()=>msg.textContent='자원 배분 장부를 복사했습니다.').catch(setError)};
+  async function loadEvents(){eventsData=await api('/api/ops/events');renderEvents()}
+  function renderEvents(){const host=get('events-list');host.replaceChildren();if(!eventsData.events.length){host.append(elt('p','등록된 일정이 없습니다.'));return}
+    const table=elt('table'),head=elt('thead'),tr=elt('tr');for(const h of ['일정','종류','게임 UTC','한국 KST','작업'])tr.append(elt('th',h));head.append(tr);table.append(head);const body=elt('tbody');for(const e of eventsData.events){const row=elt('tr');for(const v of [e.title,e.event_type,e.start_utc.replace('T',' '),dateKst(e.start_utc)])row.append(elt('td',v));const cell=elt('td');cell.append(btn('삭제',async()=>{if(!confirm('일정을 삭제하시겠습니까?'))return;try{await api('/api/ops/events/'+e.id,'DELETE',{});await loadEvents();msg.textContent='일정을 삭제했습니다.'}catch(x){setError(x)}},'danger'));row.append(cell);body.append(row)}table.append(body);host.append(table)}
+  get('event-form').onsubmit=async e=>{e.preventDefault();try{await api('/api/ops/events','POST',{title:get('event-title').value,event_type:get('event-type').value,start_utc:get('event-start').value,end_utc:get('event-end').value||null,note:get('event-note').value});e.target.reset();await loadEvents();msg.textContent='일정을 저장했습니다.'}catch(x){setError(x)}};
+  get('events-copy').onclick=()=>{const lines=eventsData.events.map(e=>'['+e.event_type+'] '+e.title+' · UTC '+e.start_utc.replace('T',' ')+' / KST '+dateKst(e.start_utc));navigator.clipboard.writeText(lines.join('\n')).then(()=>msg.textContent='일정 공지를 복사했습니다.').catch(setError)};
+  function insightsText(){if(!dashboardData)return '운영 데이터 조회 중';const d=dashboardData,z=d.alliances.ZZN,g=d.alliances.GGZ;
+    const line=['4114 ZZN&GGZ 운영 현황','ZZN '+z.count+'명 / GGZ '+g.count+'명 · 인원 차이 '+Math.abs(z.count-g.count)+'명',
+      '등록된 전투력 ZZN '+(z.powerKnown?formatPower(z.power):'미확인')+' / GGZ '+(g.powerKnown?formatPower(g.power):'미확인'),
+      'R5·R4 ZZN '+z.r4+'명 / GGZ '+g.r4+'명','부계정 ZZN '+z.alts+'명 / GGZ '+g.alts+'명',
+      '명단 출처: D1 저장 정보 · 공식 SVS 순위 미연동'];return line.join('\n')}
+  function renderInsights(){const host=get('insights-content');host.replaceChildren();if(!dashboardData){loadDashboard().then(renderInsights).catch(setError);return}const text=insightsText();const pre=elt('pre',text);pre.style.cssText='white-space:pre-wrap;line-height:1.9;background:#f4f9fe;border:1px solid #e0ebf5;border-radius:12px;padding:18px';host.append(pre)}
+  get('insights-copy').onclick=()=>navigator.clipboard.writeText(insightsText()).then(()=>msg.textContent='운영 요약을 복사했습니다.').catch(setError);
   async function init(){try{await call('/api/owner/me');display(true)}catch{display(false)}}
   by('owner-login-form').onsubmit=async e=>{e.preventDefault();err.textContent='';try{await call('/api/owner/login','POST',{id:by('owner-id').value,password:by('owner-secret').value});by('owner-secret').value='';display(true)}catch(x){err.textContent=x.message}};
   by('pin-form').onsubmit=async e=>{e.preventDefault();err.textContent='';if(by('new-pin').value!==by('again').value){err.textContent='비밀번호 확인이 일치하지 않습니다.';return;}try{await call('/api/owner/pin','POST',{pin:by('new-pin').value});by('new-pin').value='';by('again').value='';msg.textContent='공용 비밀번호가 변경되었습니다. 기존 운영진 로그인은 해제됩니다.';}catch(x){err.textContent=x.message}};
@@ -365,8 +573,9 @@ async function main(req,env,now) {
   if(!await authenticated(req,env,now)) return responseJSON({error:'운영진 로그인이 필요합니다.'},401);
   if(p==='/api/me' && req.method==='GET') return responseJSON({role:'OFFICER',auth:'shared-pin'});
   if(p.startsWith('/api/oracle/')) return oracleHandler(req,env,p,{validOrigin,parseBody});
+  if(p.startsWith('/api/ops/')) return operationsHandler(req,env,p,{validOrigin,parseBody,audit});
   if(p==='/api/players' && req.method==='GET') {
-    const result=await env.DB.prepare("SELECT p.fid,p.nickname,p.alliance_tag,COALESCE(l.game_rank,'UNSET') AS game_rank,COALESCE(l.is_alt,0) AS is_alt FROM wos_players p LEFT JOIN wos_member_labels l ON l.fid=p.fid WHERE p.alliance_tag IN ('ZZN','GGZ') ORDER BY p.alliance_tag,p.nickname LIMIT 300").all();
+    const result=await env.DB.prepare("SELECT p.fid,p.nickname,p.alliance_tag,p.power_text,COALESCE(l.game_rank,'UNSET') AS game_rank,COALESCE(l.is_alt,0) AS is_alt FROM wos_players p LEFT JOIN wos_member_labels l ON l.fid=p.fid WHERE p.alliance_tag IN ('ZZN','GGZ') ORDER BY p.alliance_tag,p.nickname LIMIT 300").all();
     return responseJSON({players:result.results||[]});
   }
   if(p==='/api/notices' && req.method==='GET') {

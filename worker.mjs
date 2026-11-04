@@ -217,13 +217,16 @@ function home(){
   }
   get('oracle-config').onsubmit=async e=>{e.preventDefault();try{err.textContent='';const x=await api('/api/oracle/config','POST',{ZZN:get('oracle-zzn').value,GGZ:get('oracle-ggz').value});oraclePreviewValid=false;get('oracle-sync').disabled=true;msg.textContent=x.message;await loadOracleStatus()}catch(x){setError(x)}};
   get('oracle-preview').onclick=async()=>{try{err.textContent='';get('oracle-preview').disabled=true;get('oracle-preview-data').textContent='Oracle+ 응답을 조회하고 있습니다.';
-    const r=await api('/api/oracle/preview','POST',{});oraclePreviewValid=true;get('oracle-sync').disabled=false;
+    const r=await api('/api/oracle/preview','POST',{});oraclePreviewValid=r.alliances.every(a=>a.linkedCount>0);get('oracle-sync').disabled=!oraclePreviewValid;
     const host=get('oracle-preview-data');host.replaceChildren();host.append(elt('p',r.message));
     for(const a of r.alliances){host.append(elt('h3',a.tag+' · '+a.name+' · '+a.count+'명 · AID '+a.aid));
-      const sample=a.examples.map(p=>p.nickname+' ('+p.fid+')').join(', ');host.append(elt('p','샘플: '+sample));}
+      host.append(elt('p','ID 확인 '+a.linkedCount+'명 · ID 미연결 '+a.unresolvedCount+'명 (미연결 인원은 갱신 제외)'));
+      const sample=a.examples.map(p=>p.nickname+' ('+p.fid+')').join(', ');host.append(elt('p','ID 확인 샘플: '+(sample||'없음')));
+      if(a.unresolvedCount)host.append(elt('p','ID 미연결 이름 예시: '+a.unresolvedExamples.map(p=>p.name).join(', ')));}
+    if(!oraclePreviewValid)host.append(elt('p','어느 한 연맹에 ID가 확인된 사람이 없어 명단 갱신을 차단했습니다.'));
   }catch(x){oraclePreviewValid=false;get('oracle-sync').disabled=true;get('oracle-preview-data').textContent='미리보기에 실패했습니다. 연맹 ID와 API_TOKEN을 확인하세요.';setError(x)}finally{get('oracle-preview').disabled=false}};
   get('oracle-sync').onclick=async()=>{if(!oraclePreviewValid)return;if(!confirm('ZZN·GGZ 기존 닉네임·소속·전투력을 Oracle+ 최신 정보로 갱신하시겠습니까? R4·부계정은 보존됩니다.'))return;
-    try{get('oracle-sync').disabled=true;const r=await api('/api/oracle/sync','POST',{confirm:true});msg.textContent='동기화 완료: ZZN '+r.counts.ZZN+'명, GGZ '+r.counts.GGZ+'명';oraclePreviewValid=false;await Promise.all([fetchPlayers(),loadOracleStatus()]);}catch(x){setError(x)} };
+    try{get('oracle-sync').disabled=true;const r=await api('/api/oracle/sync','POST',{confirm:true});msg.textContent='ID 확인 인원 갱신 완료: ZZN '+r.counts.ZZN+'명, GGZ '+r.counts.GGZ+'명 · ID 미연결 제외: ZZN '+r.unresolvedCounts.ZZN+'명, GGZ '+r.unresolvedCounts.GGZ+'명';oraclePreviewValid=false;await Promise.all([fetchPlayers(),loadOracleStatus()]);}catch(x){setError(x)} };
   for(const [id,enabled] of [['oracle-auto-on',true],['oracle-auto-off',false]])get(id).onclick=async()=>{try{const x=await api('/api/oracle/automatic','POST',{enabled});msg.textContent=x.message;await loadOracleStatus()}catch(x){setError(x)}};
   function clearRows(node){node.replaceChildren()}
   function renderPlayers(){get('count-zzn').textContent=players.filter(x=>x.alliance_tag==='ZZN').length;get('count-ggz').textContent=players.filter(x=>x.alliance_tag==='GGZ').length;get('count-all').textContent=players.length;

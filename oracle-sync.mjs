@@ -37,7 +37,13 @@ async function reserveBudget(db,tag,now){
  return id;
 }
 function errorWithStatus(message,status=502){const e=new Error(message);e.status=status;return e;}
-async function getRemoteAlliance(env,tag,aid,fetchImpl=fetch){
+function retryAfterSeconds(header){
+ if(!header)return null;
+ if(/^\d+$/.test(header.trim()))return Math.max(0,Number(header.trim()));
+ const date=Date.parse(header);
+ return Number.isFinite(date)?Math.max(0,Math.ceil((date-Date.now())/1000)):null;
+}
+async function getRemoteAllianceOnce(env,tag,aid,fetchImpl=fetch){
  if(!tokenOk(env))throw errorWithStatus('Cloudflare의 API_TOKEN Secret이 등록되지 않았습니다.',503);
  const now=Math.floor(Date.now()/1000);
  const logId=await reserveBudget(env.DB,tag,now);
@@ -53,7 +59,11 @@ async function getRemoteAlliance(env,tag,aid,fetchImpl=fetch){
    if(statusCode===401||statusCode===403)throw errorWithStatus('Oracle+ 토큰 인증이 거부되었습니다.',502);
    if(statusCode===402)throw errorWithStatus('Oracle+ 구독 또는 이용 한도를 확인해 주세요.',502);
    if(statusCode===404)throw errorWithStatus(`${tag}의 연맹 ID를 Oracle+에서 찾지 못했습니다.`,422);
-   if(statusCode===429)throw errorWithStatus('Oracle+ 측 요청 제한입니다. 잠시 후 다시 시도해 주세요.',429);
+   if(statusCode===429){
+    const seconds=retryAfterSeconds(res.headers.get('retry-after'));
+    const e=errorWithStatus(`Oracle+ 측 요청 제한입니다. ${seconds===null?'잠시 후':seconds+'초 후'} 다시 시도해 주세요.`,429);
+    e.retryAfterSeconds=seconds;throw e;
+   }
    throw errorWithStatus(`Oracle+ 조회에 실패했습니다 (HTTP ${statusCode}).`);
   }
   if(!(res.headers.get('content-type')||'').toLowerCase().includes('json'))throw errorWithStatus('Oracle+ 응답이 JSON이 아닙니다.');
@@ -65,6 +75,18 @@ async function getRemoteAlliance(env,tag,aid,fetchImpl=fetch){
   if(e?.status)throw e;
   throw errorWithStatus('Oracle+ 네트워크 연결 또는 시간 초과 오류입니다.');
  }
+}
+async function getRemoteAlliance(env,tag,aid,fetchImpl=fetch){
+ for(let attempt=0;attempt<2;attempt++){
+  try{return await getRemoteAllianceOnce(env,tag,aid,fetchImpl)}
+  catch(e){
+   // A short Retry-After is respected once. Longer delays are returned to the
+   // operator rather than keeping a Worker request alive indefinitely.
+   if(e?.status!==429||attempt!==0||!Number.isFinite(e.retryAfterSeconds)||e.retryAfterSeconds>3)throw e;
+   await new Promise(resolve=>setTimeout(resolve,e.retryAfterSeconds*1000));
+  }
+ }
+ throw errorWithStatus('Oracle+ 요청 제한으로 조회를 마치지 못했습니다.',429);
 }
 function normalizeAlliance(payload,tag,aid){
  // v1 reference: {id, abbr, name, member_count, members:[{id,name,power,...}]}.
@@ -81,16 +103,24 @@ function normalizeAlliance(payload,tag,aid){
  if(total!==undefined && Number.isFinite(Number(total)) && Number(total)>source.length){
   throw errorWithStatus(`${tag}: 회원 수(${total})보다 실제 응답 명단(${source.length}명)이 적습니다. 일부 누락을 방지하기 위해 중단했습니다.`,422);
  }
- const members=[],seen=new Set();
+ const members=[],unresolved=[],seen=new Set();
  for(const x of source){
-  const fid=cleanString(x?.id??x?.fid??x?.player_id,30);
+  if(!obj(x))throw errorWithStatus(`${tag}: 플레이어 정보 형식이 올바르지 않습니다.`,422);
+  const rawId=x.id??x.fid??x.player_id;
+  if(rawId===undefined||rawId===null)throw errorWithStatus(`${tag}: 플레이어 ID 필드가 없어 저장하지 않았습니다.`,422);
+  const fid=cleanString(rawId,30);
   const nickname=cleanString(x?.name??x?.nickname,100);
-  if(!FID_RE.test(fid)||!nickname||nickname.length>80||seen.has(fid))
+  if(!nickname||nickname.length>80)throw errorWithStatus(`${tag}: 플레이어 이름이 누락되거나 올바르지 않습니다.`,422);
+  // Oracle+ v1 explicitly returns an empty ID for an as-yet-unlinked roster member.
+  // Do not insert an invented ID or block every other valid member because of it.
+  if(!fid){unresolved.push({name:nickname});continue;}
+  if(!FID_RE.test(fid)||seen.has(fid))
    throw errorWithStatus(`${tag}: 플레이어 데이터가 불완전하거나 ID가 중복되어 저장하지 않았습니다.`,422);
   const power=x.power===null||x.power===undefined?null:cleanString(x.power,50);
   seen.add(fid);members.push({fid,nickname,alliance_tag:tag,power_text:power});
  }
- return {tag,aid:String(aid),name:cleanString(root.name,100),member_count:members.length,members};
+ return {tag,aid:String(aid),name:cleanString(root.name,100),member_count:source.length,
+  linked_count:members.length,unresolved_count:unresolved.length,unresolved,members};
 }
 async function fetchBoth(env,fetchImpl=fetch){
  const conf=await getSettings(env);for(const tag of TAGS)if(!conf[tag]?.aid)throw errorWithStatus('ZZN 및 GGZ 연맹 ID를 먼저 저장해 주세요.',422);
@@ -100,6 +130,7 @@ async function fetchBoth(env,fetchImpl=fetch){
  return [z,g];
 }
 async function applySync(env,alliances,mode='manual'){
+ if(alliances.some(a=>!a.linked_count))throw errorWithStatus('ID가 확인된 연맹원이 없는 연맹이 있어 갱신을 중단했습니다. 기존 명단은 유지됩니다.',422);
  const sql=`INSERT INTO wos_players(fid,nickname,alliance_tag,power_text,source) VALUES(?,?,?,?,'ORACLE')
  ON CONFLICT(fid) DO UPDATE SET nickname=excluded.nickname,alliance_tag=excluded.alliance_tag,
  power_text=excluded.power_text,source='ORACLE',updated_at=CURRENT_TIMESTAMP`;
@@ -107,11 +138,11 @@ async function applySync(env,alliances,mode='manual'){
  for(const alliance of alliances)for(const m of alliance.members)statements.push(env.DB.prepare(sql).bind(m.fid,m.nickname,m.alliance_tag,m.power_text));
  for(const a of alliances){
   statements.push(env.DB.prepare('UPDATE wos_oracle_alliance_config SET last_synced_at=CURRENT_TIMESTAMP WHERE alliance_tag=?').bind(a.tag));
-  statements.push(env.DB.prepare('INSERT INTO wos_oracle_sync_log(id,alliance_tag,member_count,sync_mode) VALUES(?,?,?,?)').bind(crypto.randomUUID(),a.tag,a.member_count,mode));
+  statements.push(env.DB.prepare('INSERT INTO wos_oracle_sync_log(id,alliance_tag,member_count,sync_mode) VALUES(?,?,?,?)').bind(crypto.randomUUID(),a.tag,a.linked_count,mode));
  }
  // Transactional D1 batch: all upserts, timestamps and logs succeed or roll back.
  await env.DB.batch(statements);
- return Object.fromEntries(alliances.map(a=>[a.tag,a.member_count]));
+ return Object.fromEntries(alliances.map(a=>[a.tag,a.linked_count]));
 }
 async function getStatus(env){
  const conf=await getSettings(env),limits=await budgetCounts(env.DB,Math.floor(Date.now()/1000));
@@ -134,13 +165,17 @@ async function handler(req,env,p,{validOrigin,parseBody,fetchImpl=fetch}){
   }
   if(p==='/api/oracle/preview'){
    const records=await fetchBoth(env,fetchImpl);
-   return j({preview:true,readOnly:true,alliances:records.map(a=>({tag:a.tag,aid:a.aid,name:a.name,count:a.member_count,examples:a.members.slice(0,8)})),message:'실제 응답의 연맹 태그와 명단을 검증했습니다. 아직 D1 명단은 변경하지 않았습니다.'});
+   return j({preview:true,readOnly:true,alliances:records.map(a=>({tag:a.tag,aid:a.aid,name:a.name,
+    count:a.member_count,linkedCount:a.linked_count,unresolvedCount:a.unresolved_count,
+    unresolvedExamples:a.unresolved.slice(0,5),examples:a.members.slice(0,8)})),
+    message:'실제 연맹 태그와 명단을 검증했습니다. ID 미연결 인원은 저장 대상에서 제외하며 기존 데이터는 보존합니다. 아직 D1 명단은 변경하지 않았습니다.'});
   }
   if(p==='/api/oracle/sync'){
    if(v.confirm!==true)return j({error:'명단 갱신 확인이 필요합니다.'},400);
    const records=await fetchBoth(env,fetchImpl);
    const counts=await applySync(env,records,'manual');
-   return j({synced:true,counts,message:'두 연맹 명단이 갱신되었습니다. 기존 R4·부계정 표시는 그대로 유지됩니다.'});
+   const unresolvedCounts=Object.fromEntries(records.map(a=>[a.tag,a.unresolved_count]));
+   return j({synced:true,counts,unresolvedCounts,message:'ID가 확인된 연맹원을 갱신했습니다. ID 미연결 인원은 제외했으며 기존 R4·부계정 및 다른 명단은 보존했습니다.'});
   }
   if(p==='/api/oracle/automatic'){
    if(typeof v.enabled!=='boolean')return j({error:'자동 갱신 설정이 올바르지 않습니다.'},400);

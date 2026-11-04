@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "wos-4114-operators",
+  "name": "4114-wos-operator-portal",
   "main": "worker.mjs",
   "compatibility_date": "2026-11-02",
   "workers_dev": true,

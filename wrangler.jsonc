@@ -12,5 +12,9 @@
       "database_id": "b3b306c8-2616-4c7c-89ad-90c95b227fa4"
     }
   ],
-  "observability": {"enabled": true, "head_sampling_rate": 1}
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "keep_vars": true
 }

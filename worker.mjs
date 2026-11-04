@@ -17,11 +17,16 @@ const MAX_SESSION_SEC = 8 * 3600;
 const OWNER_SESSION_SEC = 45 * 60;
 const ownerCookieName = '__Host-wos_owner';
 const ownerIDPattern = /^[A-Za-z0-9._@-]{3,80}$/;
-function ownerConfigOk(env) {
-  return !!env?.DB && typeof env.SESSION_SECRET === 'string' && env.SESSION_SECRET.length >= 32 &&
-    ownerIDPattern.test(env.OWNER_LOGIN_ID || '') && typeof env.OWNER_LOGIN_SECRET === 'string' &&
-    env.OWNER_LOGIN_SECRET.length >= 20;
+// Only validation results are returned to the UI; NEVER reveal actual secret values.
+function ownerConfigIssues(env) {
+  const issues=[];
+  if(!env?.DB) issues.push('DB 연결');
+  if(typeof env?.SESSION_SECRET!=='string' || env.SESSION_SECRET.length<32) issues.push('SESSION_SECRET (32자 이상)');
+  if(typeof env?.OWNER_LOGIN_ID!=='string' || !ownerIDPattern.test(env.OWNER_LOGIN_ID)) issues.push('OWNER_LOGIN_ID (3~80자 / 영문·숫자·._@-)');
+  if(typeof env?.OWNER_LOGIN_SECRET!=='string' || env.OWNER_LOGIN_SECRET.length<20) issues.push('OWNER_LOGIN_SECRET (20자 이상)');
+  return issues;
 }
+function ownerConfigOk(env) { return ownerConfigIssues(env).length===0; }
 
 function responseJSON(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), { status, headers: {
@@ -265,7 +270,7 @@ function ownerPage(){
 }
 async function ownerRequest(req,env,now,path) {
   if(path==='/admin' && req.method==='GET') return ownerPage();
-  if(!ownerConfigOk(env)) return responseJSON({error:'최고관리자 비밀 설정이 필요합니다.'},503);
+  if(!ownerConfigOk(env)) return responseJSON({error:'Cloudflare 설정 확인 필요: '+ownerConfigIssues(env).join(' / ')},503);
   if(path==='/api/owner/login' && req.method==='POST') {
     if(!validOrigin(req)) return responseJSON({error:'잘못된 요청입니다.'},403);
     let v;try{v=await parseBody(req,1500)}catch{return responseJSON({error:'로그인 요청이 올바르지 않습니다.'},400)}
@@ -310,7 +315,7 @@ function validateNotice(v){
 }
 async function main(req,env,now) {
   const url = new URL(req.url); const p=url.pathname;
-  if(p==='/health' && req.method==='GET') return responseJSON({service:'4114 unified operator PIN portal',configured:configOk(env)});
+  if(p==='/health' && req.method==='GET') return responseJSON({service:'4114 unified operator PIN portal',configured:configOk(env),ownerConfigured:ownerConfigOk(env)});
   if(!env.DB) return responseJSON({error:'DB 연결이 필요합니다.'},503);
   if(p==='/' && req.method==='GET') return home();
   if(p==='/admin'||p.startsWith('/api/owner/')) return ownerRequest(req,env,now,p);
@@ -391,4 +396,4 @@ async function main(req,env,now) {
   return responseJSON({error:'Not found'},404);
 }
 export default { async fetch(req,env) { try { return await main(req,env,Math.floor(Date.now()/1000)); } catch(e) { console.error('Operator portal error:',String(e?.message||'unexpected')); return responseJSON({error:'요청 처리 중 문제가 발생했습니다.'},500); } } };
-export const _testing={configOk,signSession,authenticated,login,constantTimeEqual,attemptInfo,pinDigest,activePinDigest,ownerConfigOk,ownerAuthenticated,ownerRequest};
+export const _testing={configOk,signSession,authenticated,login,constantTimeEqual,attemptInfo,pinDigest,activePinDigest,ownerConfigOk,ownerConfigIssues,ownerAuthenticated,ownerRequest};

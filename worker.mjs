@@ -48,11 +48,11 @@ function validOrigin(req) {
   try { return req.headers.get('origin') === new URL(req.url).origin && (req.headers.get('content-type')||'').startsWith('application/json'); }
   catch {return false;}
 }
-async function parseBody(req) {
+async function parseBody(req,maxChars=55000) {
   const length=Number(req.headers.get('content-length')||'0');
-  if(length>1024) throw Error('Too large');
+  if(!Number.isFinite(length)||length>maxChars*4) throw Error('Too large');
   const body=await req.text();
-  if(body.length>1024) throw Error('Too large');
+  if(body.length>maxChars) throw Error('Too large');
   return JSON.parse(body);
 }
 async function signSession(env, exp, nonce) {
@@ -106,22 +106,115 @@ async function login(req,env,now) {
   return responseJSON({ok:true},200,{'set-cookie':sessionCookie(token)});
 }
 function home(){
-  const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>4114 운영진</title><style>
-  :root{color-scheme:light}body{font:16px system-ui,-apple-system,sans-serif;background:linear-gradient(140deg,#e9f4ff,#f8fbff);color:#1c344e;padding:18px;margin:0}main{max-width:850px;margin:28px auto;background:white;padding:24px;border:1px solid #d6e5f2;border-radius:17px;box-shadow:0 10px 30px #173f6410}h1{font-size:25px;margin-bottom:4px}h2{font-size:19px}p{line-height:1.55}small{color:#55728c}.hidden{display:none}input,button,textarea,select{font:inherit;border-radius:9px;padding:11px;box-sizing:border-box}input,textarea,select{border:1px solid #b8cada;width:100%;background:white}button{background:#15649d;color:white;border:none;cursor:pointer}button.outline{background:#f5faff;color:#235579;border:1px solid #c8d9ea}form{display:grid;gap:10px}section{border-top:1px solid #e1ebf5;padding-top:16px;margin-top:18px}#error{color:#b11a32}#message{color:#177344}.pin{letter-spacing:12px;font-size:27px;max-width:220px;text-align:center}.notice{padding:11px;background:#f4f9ff;border:1px solid #e1edf6;border-radius:10px;margin:10px 0}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;padding:8px;border-bottom:1px solid #dce7f2} .scroll{max-width:100%;overflow:auto}
-  </style></head><body><main><h1>❄ 4114 WOS COMMAND CENTER</h1><p><small>ZZN · GGZ 운영진 전용</small></p><p id="error" role="alert"></p><p id="message" role="status"></p>
-  <section id="login"><h2>운영진 간편 로그인</h2><p>공용 비밀번호 네 자리만 입력하세요. 아이디는 필요하지 않습니다.</p><form id="login-form"><label for="pin">운영진 공용 비밀번호</label><input id="pin" class="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off" required><button type="submit">입장하기</button></form><p><small>이 비밀번호로 최고관리자 설정에는 접근할 수 없습니다.</small></p></section>
-  <section id="app" class="hidden"><div class="row"><strong>운영진 화면</strong><button id="logout" class="outline">로그아웃</button></div><p><small>공용 비밀번호로 입장했습니다. 8시간 이후 다시 로그인해야 합니다.</small></p><section><h2>연맹원 명단</h2><div id="players" class="scroll"></div></section><section><h2>공지 보관함</h2><form id="notice-form"><label for="title">제목</label><input id="title" maxlength="120" required><label for="body">내용</label><textarea id="body" rows="4" maxlength="4000" required></textarea><label for="lang">언어</label><select id="lang"><option value="KO">한국어</option><option value="EN">English</option></select><button type="submit">공지 저장</button></form><div id="notices"></div></section></section></main>
-  <script nonce="__NONCE__">
-  const get=id=>document.getElementById(id),error=get('error'),message=get('message');
-  async function api(url,method='GET',data){const opts={method,headers:{}};if(data!==undefined){opts.headers['content-type']='application/json';opts.body=JSON.stringify(data)}const r=await fetch(url,opts);if(!(r.headers.get('content-type')||'').includes('application/json'))throw Error('서버 응답 오류 ('+r.status+')');const v=await r.json();if(!r.ok)throw Error(v.error||'요청 실패');return v}
-  function el(name,content){const x=document.createElement(name);x.textContent=String(content??'');return x}
-  async function refresh(){error.textContent='';try{await api('/api/me');get('login').classList.add('hidden');get('app').classList.remove('hidden');const [p,n]=await Promise.all([api('/api/players'),api('/api/notices')]);get('players').replaceChildren();if(!p.players.length)get('players').append(el('p','연맹원 데이터 연결 전입니다.'));else{const table=el('table',''),row=el('tr','');for(const h of ['연맹','닉네임','ID','직책','부계정'])row.append(el('th',h));table.append(row);for(const player of p.players){const tr=el('tr','');for(const v of [player.alliance_tag,player.nickname,player.fid,player.game_rank||'-',player.is_alt?'✓':'-'])tr.append(el('td',v));table.append(tr)}get('players').append(table)}get('notices').replaceChildren();for(const notice of n.notices){const box=el('div','');box.className='notice';box.append(el('strong',notice.title+' ('+notice.language+')'),el('p',notice.body));const copy=el('button','복사');copy.type='button';copy.onclick=async()=>{try{await navigator.clipboard.writeText(notice.body);message.textContent='공지 복사 완료'}catch{error.textContent='복사 실패'}};box.append(copy);get('notices').append(box)}}catch(e){get('login').classList.remove('hidden');get('app').classList.add('hidden');}}
-  get('login-form').onsubmit=async e=>{e.preventDefault();error.textContent='';try{await api('/api/login','POST',{pin:get('pin').value});get('pin').value='';await refresh()}catch(e){error.textContent=e.message}};
-  get('notice-form').onsubmit=async e=>{e.preventDefault();error.textContent='';try{await api('/api/notices','POST',{title:get('title').value,body:get('body').value,language:get('lang').value});e.target.reset();message.textContent='공지를 저장했습니다.';await refresh()}catch(e){error.textContent=e.message}};
-  get('logout').onclick=async()=>{await api('/api/logout','POST',{});location.reload()};refresh();
+  const html = String.raw`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>4114 운영진 | ZZN · GGZ</title>
+  <style>
+  :root{color-scheme:light;font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif;color:#17314c}
+  *{box-sizing:border-box}body{margin:0;padding:16px;background:linear-gradient(140deg,#e9f4ff,#f9fcff);line-height:1.55}
+  main{width:min(1100px,100%);margin:22px auto;background:#fff;border:1px solid #d4e3f0;border-radius:18px;padding:26px;box-shadow:0 12px 35px #1045710c}
+  h1{font-size:24px;margin:0 0 4px}h2{font-size:19px;margin:10px 0}p{margin:6px 0 12px}small,.muted{color:#63778b}
+  section.panel{border:1px solid #e1eaf3;border-radius:12px;padding:16px;margin:15px 0}
+  input,button,textarea,select{font:inherit;border-radius:8px;padding:10px;max-width:100%}input,textarea,select{border:1px solid #b8cada;background:#fff;width:100%}textarea{min-height:96px;resize:vertical}
+  button{border:1px solid #17689f;background:#17689f;color:#fff;cursor:pointer;white-space:normal}
+  button:hover{filter:brightness(.96)}button.secondary{background:#f5faff;color:#17527d;border-color:#bdd3e6}button.danger{background:#fff4f4;color:#963b42;border-color:#ead3d3}
+  button:disabled{opacity:.55;cursor:not-allowed}form{display:grid;gap:9px}label{font-weight:650;font-size:14px}.hidden{display:none!important}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row > input,.row > select{flex:1;min-width:120px}
+  .pill{display:inline-block;padding:4px 9px;border-radius:50px;background:#ecf6ff;color:#245779;font-size:12px;font-weight:650}
+  header a{color:#17689f;font-weight:650;text-decoration:underline;text-underline-offset:3px}header .links{display:flex;gap:15px;flex-wrap:wrap}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}.tabs button{min-width:130px}.tabs button[aria-selected=false]{background:#f5faff;color:#30617f;border-color:#d5e2ed}
+  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.grid > div{padding:11px;background:#f5f9fc;border-radius:10px}.grid b{display:block;font-size:24px}
+  .scroll{overflow:auto;max-height:525px;border:1px solid #e4ebf2;border-radius:10px}table{border-collapse:collapse;width:100%;min-width:700px;font-size:13px}
+  td,th{text-align:left;padding:8px;border-bottom:1px solid #e0eaf2}th{background:#f5faff;position:sticky;top:0}td input[type=checkbox]{width:auto}td select{width:auto;min-width:76px;padding:6px}td button{padding:7px 9px}
+  .notice{padding:13px;border:1px solid #d7e4ef;background:#fcfdff;border-radius:12px;margin:12px 0;overflow-wrap:anywhere}
+  .notice p{white-space:pre-wrap;margin-top:8px}.muted-code{font-family:ui-monospace,monospace;white-space:pre-wrap;font-size:12px;color:#586d80}
+  .pin{letter-spacing:12px;font-size:26px;max-width:200px;text-align:center}#error{color:#a92130}#message{color:#157047}
+  .safe{padding:11px 14px;background:#f2f8fd;border:1px solid #e1ecf7;border-radius:10px}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  @media(max-width:720px){main{padding:15px}h1{font-size:21px}.two-col,.grid{grid-template-columns:1fr}.tabs button{flex:1}}
+  </style></head><body><main><header><h1>❄ 4114 WOS COMMAND CENTER</h1><p><small>ZZN · GGZ 운영진 포털</small></p><div class="links"><a href="https://wos-svs-office-zzn-2026.cozybard21.chatgpt.site/" target="_blank" rel="noopener noreferrer">SVS 관직 신청</a><a href="https://wos-svs-office-zzn-2026.cozybard21.chatgpt.site/schedule" target="_blank" rel="noopener noreferrer">관직 배정표</a></div></header>
+  <p id="error" role="alert"></p><p id="message" role="status"></p>
+  <section id="login" class="panel"><h2>운영진 간편 로그인</h2><p>공용 비밀번호 네 자리(숫자 4자리)만 입력하세요.</p>
+  <form id="login-form"><label for="pin">운영진 공용 비밀번호</label><input id="pin" class="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off" required><button type="submit">입장하기</button></form>
+  <p><small>최고관리자 설정은 별도 Cloudflare Access 페이지에서 관리합니다.</small></p></section>
+  <div id="app" class="hidden"><div class="row" style="justify-content:space-between"><span class="pill">운영진 로그인 중 · 8시간 유효</span><button class="secondary" id="logout">로그아웃</button></div>
+  <nav class="tabs" aria-label="메뉴"><button id="tab-players" aria-selected="true" type="button">연맹원 관리</button><button id="tab-notices" aria-selected="false" type="button">공지 보관함</button></nav>
+  <div id="members-view">
+   <section class="panel"><h2>연맹원 현황</h2><div class="grid"><div><small>ZZN</small><b id="count-zzn">0</b></div><div><small>GGZ</small><b id="count-ggz">0</b></div><div><small>총 인원</small><b id="count-all">0</b></div></div>
+   <p class="safe"><small>현재 명단은 새 Cloudflare D1 기준입니다. 아직 Oracle+ 자동 동기화와 기존 Sites 이력은 연결되지 않았습니다. 운영진이 지정한 R5/R4/부계정 표시는 별도로 저장됩니다.</small></p>
+   <label for="member-search">연맹원 검색</label><input id="member-search" placeholder="닉네임 또는 플레이어 ID">
+   <div id="players" class="scroll" style="margin-top:12px"></div></section>
+   <div class="two-col"><section class="panel"><h2>연맹원 추가·수정</h2><form id="member-form">
+   <label for="member-fid">플레이어 ID (숫자)</label><input id="member-fid" required inputmode="numeric" pattern="[0-9]{6,15}" maxlength="15" placeholder="게임 ID">
+   <label for="member-name">닉네임</label><input id="member-name" maxlength="80" required placeholder="게임 닉네임">
+   <label for="member-alliance">연맹</label><select id="member-alliance"><option value="ZZN">ZZN</option><option value="GGZ">GGZ</option></select>
+   <button type="submit">명단에 저장</button></form><p><small>같은 ID가 있으면 이름·연맹만 수정합니다. 수동으로 지정한 직책·부계정은 유지됩니다.</small></p></section>
+   <section class="panel"><h2>CSV 명단 가져오기</h2><p><small>첫 줄은 <code>fid,nickname,alliance_tag</code>, 이후 한 줄에 한 명. 200명까지 한번에 저장할 수 있습니다. 기존 명단은 삭제하지 않습니다.</small></p>
+   <label for="csvfile">CSV 파일 선택</label><input type="file" id="csvfile" accept=".csv,text/csv">
+   <label for="csvtext">또는 CSV 내용을 붙여넣기</label><textarea id="csvtext" placeholder="fid,nickname,alliance_tag&#10;123456789,테스트,ZZN" style="min-height:115px"></textarea>
+   <button id="import-csv" type="button" class="secondary">내용 확인 후 가져오기</button></section></div>
+  </div>
+  <div id="notices-view" class="hidden"><section class="panel"><h2>공지 보관함</h2><p class="safe"><small>게임 내 채팅용 공지를 저장·수정·삭제·복사할 수 있습니다. 복사 내용은 자동으로 게임에 전송되지 않습니다.</small></p>
+  <form id="notice-form"><label for="notice-title">공지 제목</label><input id="notice-title" maxlength="120" required>
+  <div class="two-col"><div><label for="notice-category">분류</label><select id="notice-category"><option>일반</option><option>SVS</option><option>캐슬전</option><option>보상</option><option>연맹규칙</option><option>기타</option></select></div><div><label for="notice-lang">언어</label><select id="notice-lang"><option value="KO">한국어</option><option value="EN">English</option></select></div></div>
+  <label for="notice-body">공지 내용 (최대 4,000자)</label><textarea id="notice-body" maxlength="4000" rows="6" required></textarea>
+  <div class="row"><button type="submit" id="notice-save">공지 저장</button><button type="button" id="notice-cancel" class="secondary hidden">수정 취소</button></div></form></section>
+  <section class="panel"><div class="row" style="justify-content:space-between"><h2>저장된 공지</h2><select id="chunk-size" style="width:auto"><option value="160">160자씩 분할</option><option value="220">220자씩 분할</option><option value="300">300자씩 분할</option></select></div><div id="notices"></div></section></div></div>
+  </main><script nonce="__NONCE__">
+  const get=id=>document.getElementById(id), err=get('error'),msg=get('message');
+  const elt=(tag,content)=>{const x=document.createElement(tag);if(content!==undefined)x.textContent=String(content??'');return x};
+  const btn=(text,handler,cls)=>{const b=elt('button',text);b.type='button';if(cls)b.className=cls;b.addEventListener('click',handler);return b};
+  let players=[],notices=[],editNotice=null;
+  function setError(e){err.textContent=e instanceof Error?e.message:String(e);msg.textContent=''}
+  async function api(url,method='GET',data){const o={method,headers:{}};if(data!==undefined){o.headers['content-type']='application/json';o.body=JSON.stringify(data)}
+    const r=await fetch(url,o);if(!(r.headers.get('content-type')||'').includes('application/json'))throw Error('서버에서 JSON 대신 다른 응답을 보냈습니다. HTTP '+r.status);
+    const v=await r.json();if(!r.ok)throw Error(v.error||'요청 실패');return v;}
+  function showTab(name){for(const n of ['players','notices']){get('tab-'+n).setAttribute('aria-selected',String(n===name));get(n==='players'?'members-view':'notices-view').classList.toggle('hidden',n!==name)}}
+  get('tab-players').onclick=()=>showTab('players');get('tab-notices').onclick=()=>showTab('notices');
+  function clearRows(node){node.replaceChildren()}
+  function renderPlayers(){get('count-zzn').textContent=players.filter(x=>x.alliance_tag==='ZZN').length;get('count-ggz').textContent=players.filter(x=>x.alliance_tag==='GGZ').length;get('count-all').textContent=players.length;
+    const q=get('member-search').value.toLowerCase().trim();const matches=players.filter(x=>!q||String(x.nickname).toLowerCase().includes(q)||String(x.fid).includes(q));const host=get('players');clearRows(host);
+    if(!matches.length){host.append(elt('p',players.length?'검색 결과가 없습니다.':'명단이 비어 있습니다. 연맹원을 등록하거나 CSV를 가져오세요.'));return;}
+    const table=elt('table');const head=elt('thead'),tr=elt('tr');for(const h of ['연맹','닉네임','ID','직책','부계정','저장'])tr.append(elt('th',h));head.append(tr);table.append(head);const body=elt('tbody');
+    for(const p of matches){const row=elt('tr');for(const v of [p.alliance_tag,p.nickname,p.fid])row.append(elt('td',v));
+      const rankCell=elt('td'),rank=elt('select');for(const v of ['UNSET','R5','R4','R3','R2','R1']){const op=elt('option',v==='UNSET'?'미지정':v);op.value=v;rank.append(op)}rank.value=p.game_rank||'UNSET';rankCell.append(rank);row.append(rankCell);
+      const altCell=elt('td'),alt=elt('input');alt.type='checkbox';alt.checked=!!p.is_alt;alt.setAttribute('aria-label',p.nickname+' 부계정');altCell.append(alt);row.append(altCell);
+      const action=elt('td');action.append(btn('표시 저장',async()=>{try{err.textContent='';await api('/api/players/'+encodeURIComponent(p.fid)+'/labels','PATCH',{game_rank:rank.value,is_alt:alt.checked});msg.textContent=p.nickname+' 표시를 저장했습니다.';await fetchPlayers()}catch(e){setError(e)}}));row.append(action);body.append(row)}table.append(body);host.append(table);
+  }
+  get('member-search').oninput=renderPlayers;
+  async function fetchPlayers(){const r=await api('/api/players');players=r.players||[];renderPlayers()}
+  async function fetchNotices(){const r=await api('/api/notices');notices=r.notices||[];renderNotices()}
+  async function init(){try{await api('/api/me')}catch{get('login').classList.remove('hidden');get('app').classList.add('hidden');return}
+    get('login').classList.add('hidden');get('app').classList.remove('hidden');const outcome=await Promise.allSettled([fetchPlayers(),fetchNotices()]);for(const x of outcome)if(x.status==='rejected')setError(x.reason)}
+  get('login-form').onsubmit=async e=>{e.preventDefault();err.textContent='';try{await api('/api/login','POST',{pin:get('pin').value});get('pin').value='';await init()}catch(x){setError(x)}};
+  get('logout').onclick=async()=>{try{await api('/api/logout','POST',{})}finally{location.reload()}};
+  get('member-form').onsubmit=async e=>{e.preventDefault();err.textContent='';try{await api('/api/players/import','POST',{players:[{fid:get('member-fid').value,nickname:get('member-name').value,alliance_tag:get('member-alliance').value}]});e.target.reset();msg.textContent='연맹원을 저장했습니다.';await fetchPlayers()}catch(x){setError(x)}};
+  function parseCsv(source){const rows=[];let row=[],cell='',inside=false;for(let i=0;i<source.length;i++){const c=source[i];if(c==='"'){if(inside&&source[i+1]==='"'){cell+='"';i++}else inside=!inside}else if(c===','&&!inside){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!inside){if(c==='\r'&&source[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell=''}else cell+=c;}if(inside)throw Error('CSV 따옴표 형식을 확인하세요.');row.push(cell);if(row.some(x=>x.trim()))rows.push(row);
+    const h=(rows.shift()||[]).map(x=>x.trim().replace(/^\ufeff/,''));const key=x=>h.findIndex(v=>v.toLowerCase()===x||({'fid':['아이디','플레이어id','id'],'nickname':['닉네임','name'],'alliance_tag':['연맹','alliance']}[x]||[]).includes(v.toLowerCase()));const a=key('fid'),b=key('nickname'),c=key('alliance_tag');
+    if(a<0||b<0||c<0)throw Error('CSV 첫 줄에 fid,nickname,alliance_tag가 필요합니다.');return rows.map(r=>({fid:(r[a]||'').trim(),nickname:(r[b]||'').trim(),alliance_tag:(r[c]||'').trim().toUpperCase()}))}
+  get('csvfile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>50000){setError(Error('CSV 파일은 50KB 이하여야 합니다.'));return}get('csvtext').value=await f.text()};
+  get('import-csv').onclick=async()=>{try{err.textContent='';const list=parseCsv(get('csvtext').value);if(!list.length||list.length>200)throw Error('CSV에는 1~200명만 넣을 수 있습니다.');if(!confirm(list.length+'명을 가져오시겠습니까? 기존 명단은 삭제하지 않습니다.'))return;
+      const r=await api('/api/players/import','POST',{players:list});msg.textContent=r.saved+'명의 명단을 저장했습니다.';get('csvtext').value='';get('csvfile').value='';await fetchPlayers()}catch(e){setError(e)}};
+  function resetNotice(){editNotice=null;get('notice-form').reset();get('notice-save').textContent='공지 저장';get('notice-cancel').classList.add('hidden')}
+  get('notice-cancel').onclick=resetNotice;
+  get('notice-form').onsubmit=async e=>{e.preventDefault();err.textContent='';const v={title:get('notice-title').value,body:get('notice-body').value,language:get('notice-lang').value,category:get('notice-category').value};try{
+    if(editNotice)await api('/api/notices/'+encodeURIComponent(editNotice),'PATCH',v);else await api('/api/notices','POST',v);resetNotice();msg.textContent='공지를 저장했습니다.';await fetchNotices()}catch(e){setError(e)}};
+  async function copyText(s){try{await navigator.clipboard.writeText(s);msg.textContent='복사했습니다.'}catch{setError(Error('복사 권한이 거부되었습니다. 브라우저의 클립보드 허용을 확인하세요.'))}}
+  function renderNotices(){const host=get('notices');clearRows(host);if(!notices.length){host.append(elt('p','저장된 공지가 없습니다.'));return;}const size=Number(get('chunk-size').value)||160;
+    for(const n of notices){const card=elt('article');card.className='notice';const line=elt('div');line.className='row';const title=elt('strong',n.title);const tag=elt('span',n.category+' · '+n.language);tag.className='pill';line.append(title,tag);card.append(line,elt('p',n.body));
+      const actions=elt('div');actions.className='row';actions.append(btn('전체 복사',()=>copyText(n.body)),btn('수정',()=>{editNotice=n.id;get('notice-title').value=n.title;get('notice-body').value=n.body;get('notice-lang').value=n.language;get('notice-category').value=['일반','SVS','캐슬전','보상','연맹규칙','기타'].includes(n.category)?n.category:'기타';get('notice-save').textContent='수정 저장';get('notice-cancel').classList.remove('hidden');get('notice-form').scrollIntoView({behavior:'smooth',block:'start'})},'secondary'),btn('삭제',async()=>{if(!confirm('이 공지를 삭제하시겠습니까?'))return;try{await api('/api/notices/'+encodeURIComponent(n.id),'DELETE',{});msg.textContent='공지 삭제 완료';if(editNotice===n.id)resetNotice();await fetchNotices()}catch(e){setError(e)}},'danger'));card.append(actions);
+      const chars=Array.from(n.body);if(chars.length>size){const cnt=Math.ceil(chars.length/size),note=elt('small','분할 복사 · '+cnt+'개 구간 ('+size+'자 기준)');card.append(note);const parts=elt('div');parts.className='row';for(let i=0;i<cnt;i++){const part=chars.slice(i*size,(i+1)*size).join('');parts.append(btn((i+1)+'/'+cnt+' 복사',()=>copyText(part),'secondary'))}card.append(parts)}host.append(card);}}
+  get('chunk-size').onchange=renderNotices;
+  init();
   </script></body></html>`;
   const nonce = randomHex(16);
   return new Response(html.replace('__NONCE__',nonce),{headers:{...textHeaders,'content-security-policy':`${textHeaders['content-security-policy']}; script-src 'nonce-${nonce}'`}});
+}
+
+function validateNotice(v){
+  if(!v||typeof v.title!=='string'||typeof v.body!=='string'||typeof v.language!=='string')return null;
+  const title=v.title.trim(),body=v.body,language=v.language,category=v.category||'일반';
+  if(!title||title.length>120||!body.trim()||body.length>4000||!['KO','EN'].includes(language)||
+    typeof category!=='string'||category.length>40||!category.trim())return null;
+  return {title,body,language,category:category.trim()};
 }
 async function main(req,env,now) {
   const url = new URL(req.url); const p=url.pathname;
@@ -146,12 +239,61 @@ async function main(req,env,now) {
   }
   if(p==='/api/notices' && req.method==='POST') {
     if(!validOrigin(req))return responseJSON({error:'잘못된 요청입니다.'},403);
-    let v;try{v=await parseBody(req)}catch{return responseJSON({error:'요청 형식이 올바르지 않습니다.'},400)}
-    if(typeof v.title!=='string'||!v.title.trim()||v.title.length>120||typeof v.body!=='string'||!v.body.trim()||v.body.length>4000||!['KO','EN'].includes(v.language))return responseJSON({error:'공지 입력을 확인해 주세요.'},400);
+    let v;try{v=await parseBody(req,10000)}catch{return responseJSON({error:'요청 형식이 올바르지 않습니다.'},400)}
+    const n=validateNotice(v);if(!n)return responseJSON({error:'공지 제목·내용·언어를 확인해 주세요.'},400);
     const id=crypto.randomUUID();
-    await env.DB.prepare('INSERT INTO wos_notice_templates(id,title,body,category,language,created_by,updated_by) VALUES(?,?,?,?,?,?,?)').bind(id,v.title.trim(),v.body,'일반',v.language,'shared-pin','shared-pin').run();
+    await env.DB.prepare('INSERT INTO wos_notice_templates(id,title,body,category,language,created_by,updated_by) VALUES(?,?,?,?,?,?,?)').bind(id,n.title,n.body,n.category,n.language,'shared-pin','shared-pin').run();
     await audit(env,'NOTICE_CREATE',id);
     return responseJSON({created:true,id},201);
+  }
+  if(p==='/api/players/import' && req.method==='POST') {
+    if(!validOrigin(req))return responseJSON({error:'잘못된 요청입니다.'},403);
+    let v;try{v=await parseBody(req,55000)}catch{return responseJSON({error:'명단 요청 형식을 확인해 주세요.'},400)}
+    const input=v?.players;
+    if(!Array.isArray(input)||input.length<1||input.length>200)return responseJSON({error:'한 번에 1~200명만 가져올 수 있습니다.'},400);
+    const clean=[];const seen=new Set();
+    for(const entry of input){
+      const fid=typeof entry?.fid==='string'?entry.fid.trim():'';
+      const nickname=typeof entry?.nickname==='string'?entry.nickname.trim():'';
+      const alliance=typeof entry?.alliance_tag==='string'?entry.alliance_tag.trim().toUpperCase():'';
+      if(!/^\d{6,15}$/.test(fid)||!nickname||nickname.length>80||!['ZZN','GGZ'].includes(alliance)||seen.has(fid))
+        return responseJSON({error:'플레이어 ID·닉네임·연맹 또는 중복 ID를 확인해 주세요.'},400);
+      seen.add(fid);clean.push({fid,nickname,alliance});
+    }
+    const sql="INSERT INTO wos_players(fid,nickname,alliance_tag,source) VALUES(?,?,?,'MANUAL') ON CONFLICT(fid) DO UPDATE SET nickname=excluded.nickname, alliance_tag=excluded.alliance_tag, source='MANUAL', updated_at=CURRENT_TIMESTAMP";
+    // D1 batch is transactional; either all players in this import are saved or none.
+    await env.DB.batch(clean.map(x=>env.DB.prepare(sql).bind(x.fid,x.nickname,x.alliance)));
+    await audit(env,'MEMBER_IMPORT',String(clean.length));
+    return responseJSON({saved:clean.length});
+  }
+  const labelMatch=p.match(/^\/api\/players\/(\d{6,15})\/labels$/);
+  if(labelMatch&&req.method==='PATCH') {
+    if(!validOrigin(req))return responseJSON({error:'잘못된 요청입니다.'},403);
+    let v;try{v=await parseBody(req)}catch{return responseJSON({error:'요청 형식이 올바르지 않습니다.'},400)}
+    const rank=v?.game_rank,alt=v?.is_alt,fid=labelMatch[1];
+    if(!['UNSET','R5','R4','R3','R2','R1'].includes(rank)||typeof alt!=='boolean')
+      return responseJSON({error:'직책 또는 부계정 표시를 확인해 주세요.'},400);
+    const player=await env.DB.prepare('SELECT fid FROM wos_players WHERE fid=?').bind(fid).first();
+    if(!player)return responseJSON({error:'먼저 연맹원을 명단에 등록하세요.'},404);
+    await env.DB.prepare('INSERT INTO wos_member_labels(fid,game_rank,is_alt,updated_by) VALUES(?,?,?,?) ON CONFLICT(fid) DO UPDATE SET game_rank=excluded.game_rank,is_alt=excluded.is_alt,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP').bind(fid,rank,alt?1:0,'shared-pin').run();
+    await audit(env,'MEMBER_LABEL_UPDATE',fid);
+    return responseJSON({updated:true,fid,game_rank:rank,is_alt:alt});
+  }
+  const noticeMatch=p.match(/^\/api\/notices\/([0-9a-f]{8}-[0-9a-f-]{27,})$/i);
+  if(noticeMatch&&(req.method==='PATCH'||req.method==='DELETE')) {
+    if(!validOrigin(req))return responseJSON({error:'잘못된 요청입니다.'},403);
+    const id=noticeMatch[1];
+    const old=await env.DB.prepare('SELECT id FROM wos_notice_templates WHERE id=?').bind(id).first();
+    if(!old)return responseJSON({error:'공지 항목을 찾지 못했습니다.'},404);
+    if(req.method==='DELETE'){
+      await env.DB.prepare('DELETE FROM wos_notice_templates WHERE id=?').bind(id).run();
+      await audit(env,'NOTICE_DELETE',id);return responseJSON({deleted:true,id});
+    }
+    let v;try{v=await parseBody(req,10000)}catch{return responseJSON({error:'요청 형식이 올바르지 않습니다.'},400)}
+    const checked=validateNotice(v);
+    if(!checked)return responseJSON({error:'공지 제목·내용·언어를 확인해 주세요.'},400);
+    await env.DB.prepare('UPDATE wos_notice_templates SET title=?,body=?,category=?,language=?,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(checked.title,checked.body,checked.category,checked.language,'shared-pin',id).run();
+    await audit(env,'NOTICE_UPDATE',id);return responseJSON({updated:true,id});
   }
   return responseJSON({error:'Not found'},404);
 }

@@ -16,5 +16,10 @@
     "enabled": true,
     "head_sampling_rate": 1
   },
-  "keep_vars": true
+  "keep_vars": true,
+  "triggers": {
+    "crons": [
+      "0 */6 * * *"
+    ]
+  }
 }

@@ -1,3 +1,4 @@
+import {oracleHandler, scheduledSync} from './oracle-sync.mjs';
 // 4114 single-site operator portal. Operator uses a 4-digit shared PIN.
 // The owner changes the shared PIN on this SAME Worker at /admin.
 // No secrets or private user information are sent to clients.
@@ -158,10 +159,10 @@ function home(){
   <form id="login-form"><label for="pin">운영진 공용 비밀번호</label><input id="pin" class="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off" required><button type="submit">입장하기</button></form>
   <p><small>최고관리자는 이 사이트의 <a href="/admin">비밀번호 설정</a>에서 공용 PIN을 변경할 수 있습니다.</small></p></section>
   <div id="app" class="hidden"><div class="row" style="justify-content:space-between"><span class="pill">운영진 로그인 중 · 8시간 유효</span><button class="secondary" id="logout">로그아웃</button></div>
-  <nav class="tabs" aria-label="메뉴"><button id="tab-players" aria-selected="true" type="button">연맹원 관리</button><button id="tab-notices" aria-selected="false" type="button">공지 보관함</button></nav>
+  <nav class="tabs" aria-label="메뉴"><button id="tab-players" aria-selected="true" type="button">연맹원 관리</button><button id="tab-notices" aria-selected="false" type="button">공지 보관함</button><button id="tab-oracle" aria-selected="false" type="button">Oracle+ 동기화</button></nav>
   <div id="members-view">
    <section class="panel"><h2>연맹원 현황</h2><div class="grid"><div><small>ZZN</small><b id="count-zzn">0</b></div><div><small>GGZ</small><b id="count-ggz">0</b></div><div><small>총 인원</small><b id="count-all">0</b></div></div>
-   <p class="safe"><small>현재 명단은 새 Cloudflare D1 기준입니다. 아직 Oracle+ 자동 동기화와 기존 Sites 이력은 연결되지 않았습니다. 운영진이 지정한 R5/R4/부계정 표시는 별도로 저장됩니다.</small></p>
+   <p class="safe"><small>현재 명단은 Cloudflare D1 기준입니다. Oracle+ 동기화는 Oracle+ 탭에서 먼저 미리보기로 검증한 다음 실행할 수 있습니다. R5/R4/부계정 표시는 별도 저장됩니다.</small></p>
    <label for="member-search">연맹원 검색</label><input id="member-search" placeholder="닉네임 또는 플레이어 ID">
    <div id="players" class="scroll" style="margin-top:12px"></div></section>
    <div class="two-col"><section class="panel"><h2>연맹원 추가·수정</h2><form id="member-form">
@@ -179,7 +180,22 @@ function home(){
   <div class="two-col"><div><label for="notice-category">분류</label><select id="notice-category"><option>일반</option><option>SVS</option><option>캐슬전</option><option>보상</option><option>연맹규칙</option><option>기타</option></select></div><div><label for="notice-lang">언어</label><select id="notice-lang"><option value="KO">한국어</option><option value="EN">English</option></select></div></div>
   <label for="notice-body">공지 내용 (최대 4,000자)</label><textarea id="notice-body" maxlength="4000" rows="6" required></textarea>
   <div class="row"><button type="submit" id="notice-save">공지 저장</button><button type="button" id="notice-cancel" class="secondary hidden">수정 취소</button></div></form></section>
-  <section class="panel"><div class="row" style="justify-content:space-between"><h2>저장된 공지</h2><select id="chunk-size" style="width:auto"><option value="160">160자씩 분할</option><option value="220">220자씩 분할</option><option value="300">300자씩 분할</option></select></div><div id="notices"></div></section></div></div>
+  <section class="panel"><div class="row" style="justify-content:space-between"><h2>저장된 공지</h2><select id="chunk-size" style="width:auto"><option value="160">160자씩 분할</option><option value="220">220자씩 분할</option><option value="300">300자씩 분할</option></select></div><div id="notices"></div></section></div>
+  <div id="oracle-view" class="hidden">
+    <section class="panel"><h2>Oracle+ · ZZN / GGZ 명단 동기화</h2>
+      <p class="safe"><small>이 사이트 하나에서 Oracle+를 이용합니다. API 토큰은 Cloudflare Secret으로만 보관하며 브라우저에 표시하지 않습니다. 최초에는 연맹 ID 저장 → 미리보기 → 승인 후 동기화 순서로 진행합니다.</small></p>
+      <p id="oracle-status" class="muted" aria-live="polite">설정을 확인하고 있습니다.</p>
+      <form id="oracle-config"><label for="oracle-zzn">ZZN Oracle+ 연맹 ID (AID)</label><input id="oracle-zzn" inputmode="numeric" pattern="[0-9]{5,20}" required placeholder="숫자 연맹 ID">
+      <label for="oracle-ggz">GGZ Oracle+ 연맹 ID (AID)</label><input id="oracle-ggz" inputmode="numeric" pattern="[0-9]{5,20}" required placeholder="숫자 연맹 ID">
+      <p class="muted"><small>이전 테스트 코드에는 ZZN 4114000047 / GGZ 4114000235라는 후보가 있었지만 아직 실제 API 응답으로 검증되지 않았습니다. 연맹 태그가 맞지 않으면 저장하지 않습니다.</small></p>
+      <button type="submit" class="secondary">연맹 ID 저장</button></form>
+      <div class="row" style="margin-top:13px"><button id="oracle-preview" type="button" class="secondary">1. 실제 명단 미리보기 (DB 변경 없음)</button><button id="oracle-sync" type="button" disabled>2. 확인 후 명단 갱신</button></div>
+      <div id="oracle-preview-data" class="notice" aria-live="polite">미리보기를 실행하면 실제 연맹 태그·인원과 일부 닉네임을 확인할 수 있습니다.</div>
+    </section>
+    <section class="panel"><h2>자동 갱신</h2><p>첫 번째 수동 동기화가 성공하면 자동 동기화를 켤 수 있습니다. UTC 기준 6시간 간격으로 확인하며 두 연맹 응답 모두 정상일 때만 DB를 갱신합니다.</p>
+      <div class="row"><button id="oracle-auto-on" type="button" class="secondary">자동 갱신 켜기</button><button id="oracle-auto-off" type="button" class="secondary">자동 갱신 끄기</button></div>
+      <p class="muted"><small>명단에 없는 플레이어를 자동 삭제하지 않습니다. R4/R5/부계정은 변경하지 않습니다. 실제 실행을 위해서는 Cloudflare의 API_TOKEN Secret 등록이 필요합니다.</small></p></section>
+  </div></div>
   </main><script nonce="__NONCE__">
   const get=id=>document.getElementById(id), err=get('error'),msg=get('message');
   const elt=(tag,content)=>{const x=document.createElement(tag);if(content!==undefined)x.textContent=String(content??'');return x};
@@ -189,8 +205,26 @@ function home(){
   async function api(url,method='GET',data){const o={method,headers:{}};if(data!==undefined){o.headers['content-type']='application/json';o.body=JSON.stringify(data)}
     const r=await fetch(url,o);if(!(r.headers.get('content-type')||'').includes('application/json'))throw Error('서버에서 JSON 대신 다른 응답을 보냈습니다. HTTP '+r.status);
     const v=await r.json();if(!r.ok)throw Error(v.error||'요청 실패');return v;}
-  function showTab(name){for(const n of ['players','notices']){get('tab-'+n).setAttribute('aria-selected',String(n===name));get(n==='players'?'members-view':'notices-view').classList.toggle('hidden',n!==name)}}
+  function showTab(name){for(const n of ['players','notices','oracle']){get('tab-'+n).setAttribute('aria-selected',String(n===name));get(n==='players'?'members-view':n==='notices'?'notices-view':'oracle-view').classList.toggle('hidden',n!==name)}}
   get('tab-players').onclick=()=>showTab('players');get('tab-notices').onclick=()=>showTab('notices');
+  get('tab-oracle').onclick=()=>{showTab('oracle');loadOracleStatus().catch(setError)};
+  let oraclePreviewValid=false;
+  async function loadOracleStatus(){const x=await api('/api/oracle/status');
+    get('oracle-status').textContent='API 토큰: '+(x.tokenConfigured?'등록됨':'미등록')+' · 자동 갱신: '+(x.automaticEnabled?'켜짐':'꺼짐')+' · 최근 24시간 호출: '+x.limits.day+'/900'+
+      ' · 마지막 ZZN 갱신: '+(x.alliances.ZZN.last_synced_at||'없음')+' · GGZ 갱신: '+(x.alliances.GGZ.last_synced_at||'없음');
+    if(!get('oracle-zzn').value)get('oracle-zzn').value=x.alliances.ZZN.aid||'';
+    if(!get('oracle-ggz').value)get('oracle-ggz').value=x.alliances.GGZ.aid||'';
+  }
+  get('oracle-config').onsubmit=async e=>{e.preventDefault();try{err.textContent='';const x=await api('/api/oracle/config','POST',{ZZN:get('oracle-zzn').value,GGZ:get('oracle-ggz').value});oraclePreviewValid=false;get('oracle-sync').disabled=true;msg.textContent=x.message;await loadOracleStatus()}catch(x){setError(x)}};
+  get('oracle-preview').onclick=async()=>{try{err.textContent='';get('oracle-preview').disabled=true;get('oracle-preview-data').textContent='Oracle+ 응답을 조회하고 있습니다.';
+    const r=await api('/api/oracle/preview','POST',{});oraclePreviewValid=true;get('oracle-sync').disabled=false;
+    const host=get('oracle-preview-data');host.replaceChildren();host.append(elt('p',r.message));
+    for(const a of r.alliances){host.append(elt('h3',a.tag+' · '+a.name+' · '+a.count+'명 · AID '+a.aid));
+      const sample=a.examples.map(p=>p.nickname+' ('+p.fid+')').join(', ');host.append(elt('p','샘플: '+sample));}
+  }catch(x){oraclePreviewValid=false;get('oracle-sync').disabled=true;get('oracle-preview-data').textContent='미리보기에 실패했습니다. 연맹 ID와 API_TOKEN을 확인하세요.';setError(x)}finally{get('oracle-preview').disabled=false}};
+  get('oracle-sync').onclick=async()=>{if(!oraclePreviewValid)return;if(!confirm('ZZN·GGZ 기존 닉네임·소속·전투력을 Oracle+ 최신 정보로 갱신하시겠습니까? R4·부계정은 보존됩니다.'))return;
+    try{get('oracle-sync').disabled=true;const r=await api('/api/oracle/sync','POST',{confirm:true});msg.textContent='동기화 완료: ZZN '+r.counts.ZZN+'명, GGZ '+r.counts.GGZ+'명';oraclePreviewValid=false;await Promise.all([fetchPlayers(),loadOracleStatus()]);}catch(x){setError(x)} };
+  for(const [id,enabled] of [['oracle-auto-on',true],['oracle-auto-off',false]])get(id).onclick=async()=>{try{const x=await api('/api/oracle/automatic','POST',{enabled});msg.textContent=x.message;await loadOracleStatus()}catch(x){setError(x)}};
   function clearRows(node){node.replaceChildren()}
   function renderPlayers(){get('count-zzn').textContent=players.filter(x=>x.alliance_tag==='ZZN').length;get('count-ggz').textContent=players.filter(x=>x.alliance_tag==='GGZ').length;get('count-all').textContent=players.length;
     const q=get('member-search').value.toLowerCase().trim();const matches=players.filter(x=>!q||String(x.nickname).toLowerCase().includes(q)||String(x.fid).includes(q));const host=get('players');clearRows(host);
@@ -327,6 +361,7 @@ async function main(req,env,now) {
   }
   if(!await authenticated(req,env,now)) return responseJSON({error:'운영진 로그인이 필요합니다.'},401);
   if(p==='/api/me' && req.method==='GET') return responseJSON({role:'OFFICER',auth:'shared-pin'});
+  if(p.startsWith('/api/oracle/')) return oracleHandler(req,env,p,{validOrigin,parseBody});
   if(p==='/api/players' && req.method==='GET') {
     const result=await env.DB.prepare("SELECT p.fid,p.nickname,p.alliance_tag,COALESCE(l.game_rank,'UNSET') AS game_rank,COALESCE(l.is_alt,0) AS is_alt FROM wos_players p LEFT JOIN wos_member_labels l ON l.fid=p.fid WHERE p.alliance_tag IN ('ZZN','GGZ') ORDER BY p.alliance_tag,p.nickname LIMIT 300").all();
     return responseJSON({players:result.results||[]});
@@ -395,5 +430,5 @@ async function main(req,env,now) {
   }
   return responseJSON({error:'Not found'},404);
 }
-export default { async fetch(req,env) { try { return await main(req,env,Math.floor(Date.now()/1000)); } catch(e) { console.error('Operator portal error:',String(e?.message||'unexpected')); return responseJSON({error:'요청 처리 중 문제가 발생했습니다.'},500); } } };
+export default { async fetch(req,env) { try { return await main(req,env,Math.floor(Date.now()/1000)); } catch(e) { console.error('Operator portal error:',String(e?.message||'unexpected')); return responseJSON({error:'요청 처리 중 문제가 발생했습니다.'},500); } }, async scheduled(event,env,ctx) { ctx.waitUntil(scheduledSync(env)); } };
 export const _testing={configOk,signSession,authenticated,login,constantTimeEqual,attemptInfo,pinDigest,activePinDigest,ownerConfigOk,ownerConfigIssues,ownerAuthenticated,ownerRequest};
